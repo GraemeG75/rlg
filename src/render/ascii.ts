@@ -1,4 +1,4 @@
-import type { Entity, Mode } from "../core/types";
+import type { Entity, Item, Mode } from "../core/types";
 import type { Overworld } from "../maps/overworld";
 import type { Dungeon } from "../maps/dungeon";
 import { getDungeonTile, getVisibility } from "../maps/dungeon";
@@ -9,6 +9,7 @@ export type RenderContext = {
   dungeon: Dungeon | undefined;
   player: Entity;
   entities: Entity[];
+  items: Item[];
   useFov: boolean;
 };
 
@@ -37,6 +38,12 @@ export function renderAscii(ctx: RenderContext, viewWidth: number, viewHeight: n
         continue;
       }
 
+      const itemChar: string | undefined = findItemChar(ctx, wx, wy);
+      if (itemChar) {
+        out += itemChar;
+        continue;
+      }
+
       if (ctx.mode === "overworld") {
         const t = ctx.overworld.getTile(wx, wy);
         out += overworldChar(t);
@@ -48,7 +55,7 @@ export function renderAscii(ctx: RenderContext, viewWidth: number, viewHeight: n
         if (ctx.useFov) {
           const v = getVisibility(dungeon, wx, wy);
           if (v === "unseen") { out += " "; continue; }
-          if (v === "seen") { out += dungeonChar(getDungeonTile(dungeon, wx, wy)); continue; }
+          // 'seen' renders normally for simplicity; you can dim via CSS later if you want.
         }
 
         out += dungeonChar(getDungeonTile(dungeon, wx, wy));
@@ -83,6 +90,37 @@ function findEntityChar(ctx: RenderContext, x: number, y: number): string | unde
   return undefined;
 }
 
+function findItemChar(ctx: RenderContext, x: number, y: number): string | undefined {
+  for (const it of ctx.items) {
+    if (!it.mapRef || !it.pos) continue;
+
+    if (ctx.mode === "overworld") {
+      if (it.mapRef.kind !== "overworld") continue;
+    } else {
+      if (it.mapRef.kind !== "dungeon") continue;
+      if (!ctx.dungeon) continue;
+      if (it.mapRef.dungeonId !== ctx.dungeon.id) continue;
+      if (ctx.useFov) {
+        const v = getVisibility(ctx.dungeon, x, y);
+        if (v !== "visible") continue;
+      }
+    }
+
+    if (it.pos.x === x && it.pos.y === y) return itemChar(it.kind);
+  }
+
+  return undefined;
+}
+
+function itemChar(kind: string): string {
+  switch (kind) {
+    case "potion": return "!";
+    case "weapon": return ")";
+    case "armor": return "]";
+    default: return "?";
+  }
+}
+
 function overworldChar(tile: string): string {
   switch (tile) {
     case "water": return "~";
@@ -90,6 +128,8 @@ function overworldChar(tile: string): string {
     case "forest": return "♣";
     case "mountain": return "^";
     case "dungeon": return "D";
+    case "town": return "T";
+    case "road": return "=";
     default: return "?";
   }
 }

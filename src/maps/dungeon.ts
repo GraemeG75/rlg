@@ -3,10 +3,15 @@ import type { DungeonTile, Point, TileVisibility } from "../core/types";
 
 export type Dungeon = {
   id: string;
+  baseId: string;
+  depth: number;
+
   width: number;
   height: number;
+
   tiles: DungeonTile[];         // width*height
   visibility: TileVisibility[]; // width*height (fog of war)
+
   stairsUp: Point;
   stairsDown: Point;
 };
@@ -39,7 +44,7 @@ export function setVisibility(dungeon: Dungeon, x: number, y: number, v: TileVis
   dungeon.visibility[idx(x, y, dungeon.width)] = v;
 }
 
-export function generateDungeon(dungeonId: string, seed: number, width: number, height: number): Dungeon {
+export function generateDungeon(dungeonId: string, baseId: string, depth: number, seed: number, width: number, height: number): Dungeon {
   const rng: Rng = new Rng(seed);
 
   const tiles: DungeonTile[] = new Array<DungeonTile>(width * height).fill("wall");
@@ -120,7 +125,7 @@ export function generateDungeon(dungeonId: string, seed: number, width: number, 
   tiles[idx(stairsUp.x, stairsUp.y, width)] = "stairsUp";
   tiles[idx(stairsDown.x, stairsDown.y, width)] = "stairsDown";
 
-  return { id: dungeonId, width, height, tiles, visibility, stairsUp, stairsDown };
+  return { id: dungeonId, baseId, depth, width, height, tiles, visibility, stairsUp, stairsDown };
 }
 
 export function randomFloorPoint(dungeon: Dungeon, seed: number): Point {

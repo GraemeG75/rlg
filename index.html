@@ -3,7 +3,7 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width,initial-scale=1" />
-    <title>Web Roguelike Starter+</title>
+    <title>Web Roguelike Starter++</title>
     <style>
       :root { color-scheme: dark; }
       body {
@@ -15,7 +15,7 @@
       }
       .wrap {
         display: grid;
-        grid-template-columns: 1fr 340px;
+        grid-template-columns: 1fr 360px;
         gap: 12px;
         align-items: start;
       }
@@ -46,7 +46,14 @@
         margin-top: 10px;
         border-top: 1px solid #1a2433;
         padding-top: 10px;
-        max-height: 360px;
+        max-height: 300px;
+        overflow: auto;
+      }
+      #inv {
+        margin-top: 10px;
+        border-top: 1px solid #1a2433;
+        padding-top: 10px;
+        max-height: 220px;
         overflow: auto;
       }
       .hint { color: #8db3ff; font-size: 12px; }
@@ -61,6 +68,10 @@
       }
       button:hover { filter: brightness(1.1); }
       .pill { padding: 3px 8px; border-radius: 999px; border: 1px solid #1a2433; background: #0b1320; font-size: 12px; }
+      .kv { display:flex; justify-content: space-between; gap:10px; }
+      .small { font-size: 12px; color: #a9c5ff; }
+      .muted { color: #93a7c8; }
+      b { color: #e7f0ff; }
     </style>
   </head>
   <body>
@@ -69,7 +80,7 @@
         <div class="row" style="margin-bottom: 10px;">
           <span class="pill" id="modePill"></span>
           <span class="pill" id="renderPill"></span>
-          <span class="hint">WASD/Arrows move • Enter = use/enter • R toggle renderer • F toggle FOV • ? help</span>
+          <span class="hint">Move: WASD/Arrows • Enter use • R renderer • F FOV • G pick up • U use • E equip • P save • O load</span>
         </div>
 
         <div id="ascii"></div>
@@ -84,12 +95,17 @@
           <button id="btnAscii">ASCII</button>
           <button id="btnCanvas">Canvas</button>
           <button id="btnNewSeed">New Seed</button>
+          <button id="btnSave">Save</button>
+          <button id="btnLoad">Load</button>
         </div>
+
         <div class="hint" style="margin-top: 10px;">
-          Overworld: find <b>D</b> entrances. Dungeons persist per entrance.
-          Monsters take turns after you. Fog of war tracks explored tiles.
+          Overworld: find <b>D</b> dungeons, <b>T</b> towns, <b>=</b> roads.
+          Dungeons persist per entrance and have multiple levels (<b>&gt;</b> down, <b>&lt;</b> up).
         </div>
+
         <div id="stats" style="margin-top: 10px;"></div>
+        <div id="inv"></div>
         <div id="log"></div>
       </div>
     </div>

@@ -1,4 +1,4 @@
-import type { Entity, Mode } from "../core/types";
+import type { Entity, Item, Mode } from "../core/types";
 import type { Overworld } from "../maps/overworld";
 import type { Dungeon } from "../maps/dungeon";
 import { getDungeonTile, getVisibility } from "../maps/dungeon";
@@ -9,6 +9,7 @@ export type CanvasRenderContext = {
   dungeon: Dungeon | undefined;
   player: Entity;
   entities: Entity[];
+  items: Item[];
   useFov: boolean;
 };
 
@@ -63,6 +64,14 @@ export class CanvasRenderer {
           }
         }
 
+        // items (under entities)
+        const it: Item | undefined = this.findItemAt(ctx, wx, wy);
+        if (it) {
+          this.ctx.fillStyle = "#ffd36b";
+          this.ctx.fillText(itemGlyph(it.kind), px + 5, py + 12);
+        }
+
+        // entities
         const monster: Entity | undefined = this.findMonsterAt(ctx, wx, wy);
         if (monster) {
           this.ctx.fillStyle = "#7CFF9E";
@@ -97,19 +106,49 @@ export class CanvasRenderer {
     return undefined;
   }
 
+  private findItemAt(ctx: CanvasRenderContext, x: number, y: number): Item | undefined {
+    for (const it of ctx.items) {
+      if (!it.mapRef || !it.pos) continue;
+
+      if (ctx.mode === "overworld") {
+        if (it.mapRef.kind !== "overworld") continue;
+      } else {
+        if (!ctx.dungeon) continue;
+        if (it.mapRef.kind !== "dungeon") continue;
+        if (it.mapRef.dungeonId !== ctx.dungeon.id) continue;
+        if (ctx.useFov) {
+          const v = getVisibility(ctx.dungeon, x, y);
+          if (v !== "visible") continue;
+        }
+      }
+
+      if (it.pos.x === x && it.pos.y === y) return it;
+    }
+    return undefined;
+  }
+
   private drawOverworldTile(tile: string, x: number, y: number, s: number): void {
     switch (tile) {
       case "water": this.ctx.fillStyle = "#0b355a"; break;
       case "grass": this.ctx.fillStyle = "#11402a"; break;
       case "forest": this.ctx.fillStyle = "#0e2a1b"; break;
       case "mountain": this.ctx.fillStyle = "#3a3f46"; break;
+      case "road": this.ctx.fillStyle = "#253041"; break;
+      case "town": this.ctx.fillStyle = "#2b3b58"; break;
       case "dungeon": this.ctx.fillStyle = "#553a8a"; break;
       default: this.ctx.fillStyle = "#222"; break;
     }
     this.ctx.fillRect(x, y, s, s);
+
     if (tile === "dungeon") {
       this.ctx.fillStyle = "#e6d7ff";
       this.ctx.fillText("D", x + 5, y + 12);
+    } else if (tile === "town") {
+      this.ctx.fillStyle = "#cfe3ff";
+      this.ctx.fillText("T", x + 5, y + 12);
+    } else if (tile === "road") {
+      this.ctx.fillStyle = "#93a7c8";
+      this.ctx.fillText("=", x + 5, y + 12);
     }
   }
 
@@ -133,5 +172,14 @@ export class CanvasRenderer {
       this.ctx.fillStyle = "#cfe3ff";
       this.ctx.fillText(">", x + 5, y + 12);
     }
+  }
+}
+
+function itemGlyph(kind: string): string {
+  switch (kind) {
+    case "potion": return "!";
+    case "weapon": return ")";
+    case "armor": return "]";
+    default: return "?";
   }
 }
