@@ -1,11 +1,11 @@
 <!doctype html>
-<html>
+<html lang="en">
   <head>
     <meta charset="UTF-8" />
     <meta
       name="viewport"
       content="width=device-width,initial-scale=1" />
-    <title>Web Roguelike Starter+++</title>
+    <title>Ancient Realms of Mystery</title>
     <style>
       :root {
         color-scheme: dark;
@@ -137,14 +137,30 @@
         background: #0b1320;
         color: #93a7c8;
       }
+      #stats {
+        margin-top: 10px;
+      }
+      .marginTop10 {
+        margin-top: 10px;
+      }
+      .marginTop12 {
+        margin-top: 12px;
+      }
+      .marginBottom10 {
+        margin-bottom: 10px;
+      }
+      .displayNone {
+        display: none;
+      }
+      .btnHidden {
+        display: none;
+      }
     </style>
   </head>
   <body>
     <div class="wrap">
       <div>
-        <div
-          class="row"
-          style="margin-bottom: 10px">
+        <div class="row marginBottom10">
           <span
             class="pill"
             id="modePill"></span>
@@ -161,7 +177,7 @@
 
         <div
           id="canvasWrap"
-          style="margin-top: 12px; display: none">
+          class="marginTop12 displayNone">
           <canvas
             id="gameCanvas"
             width="1024"
@@ -173,7 +189,8 @@
         <div class="row">
           <button
             id="btnAscii"
-            style="display: none">
+            class="btnHidden"
+            type="button">
             ASCII
           </button>
           <button id="btnCanvas">Canvas</button>
@@ -185,9 +202,7 @@
           <button id="btnMap">Map</button>
         </div>
 
-        <div
-          class="hint"
-          style="margin-top: 10px">
+        <div class="hint marginTop10">
           Enjoying the adventure?
           <a
             href="https://buymeacoffee.com/figuremodel"
@@ -198,16 +213,12 @@
           to keep it going.
         </div>
 
-        <div
-          class="hint"
-          style="margin-top: 10px">
+        <div class="hint marginTop10">
           Overworld: <b>D</b> dungeons, <b>T</b> towns, <b>=</b> roads. Press <b>M</b> for map + auto-walk (Enter to set destination). Dungeons have
           levels (<b>&gt;</b>/<b>&lt;</b>). Monsters use A* pathing when they can see you.
         </div>
 
-        <div
-          id="stats"
-          style="margin-top: 10px"></div>
+        <div id="stats"></div>
         <div id="panel"></div>
         <div id="log"></div>
       </div>
