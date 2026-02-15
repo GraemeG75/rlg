@@ -12,6 +12,8 @@ import { CanvasRenderer } from "./render/canvas";
 import { MessageLog } from "./ui/log";
 import { loadFromLocalStorage, saveToLocalStorage, type SaveDataV3 } from "./core/save";
 import { renderPanelHtml, type PanelMode } from "./ui/panel";
+import { renderOverworldMapAscii } from "./ui/map";
+import { aStar } from "./systems/astar";
 import { hash2D } from "./core/hash";
 
 type RendererMode = "ascii" | "canvas";
@@ -48,6 +50,12 @@ type GameState = {
   turnCounter: number;
   quests: import("./core/types").Quest[];
 
+  // Navigation helpers
+  mapOpen: boolean;
+  mapCursor: Point;
+  destination?: Point;
+  autoPath?: Point[];
+
   log: MessageLog;
 };
 
@@ -69,6 +77,7 @@ const btnSave: HTMLButtonElement = document.getElementById("btnSave") as HTMLBut
 const btnLoad: HTMLButtonElement = document.getElementById("btnLoad") as HTMLButtonElement;
 const btnInv: HTMLButtonElement = document.getElementById("btnInv") as HTMLButtonElement;
 const btnShop: HTMLButtonElement = document.getElementById("btnShop") as HTMLButtonElement;
+const btnMap: HTMLButtonElement = document.getElementById("btnMap") as HTMLButtonElement;
 
 const canvas: HTMLCanvasElement = document.getElementById("gameCanvas") as HTMLCanvasElement;
 const canvasRenderer: CanvasRenderer = new CanvasRenderer(canvas);
@@ -113,6 +122,10 @@ function newGame(worldSeed: number): GameState {
     shopCategory: "all",
     turnCounter: 0,
     quests: [],
+    mapOpen: false,
+    mapCursor: { x: 0, y: 0 },
+    destination: undefined,
+    autoPath: undefined,
     log: new MessageLog(160)
   };
 
@@ -485,6 +498,29 @@ function handleAction(action: Action): void {
     return;
   }
 
+if (action.kind === "toggleMap") {
+  if (state.mode !== "overworld") {
+    state.log.push("Map is only available on the overworld.");
+    render();
+    return;
+  }
+
+  state.mapOpen = !state.mapOpen;
+  state.activePanel = "none";
+  state.mapCursor = { x: 0, y: 0 };
+  if (state.mapOpen) state.log.push("Map open: move cursor with WASD/Arrows, Enter to set destination, Esc/M to close, C to cancel auto-walk.");
+  render();
+  return;
+}
+
+if (action.kind === "cancelAuto") {
+  state.destination = undefined;
+  state.autoPath = undefined;
+  state.log.push("Auto-walk canceled.");
+  render();
+  return;
+}
+
   if (action.kind === "toggleQuest") {
     state.activePanel = state.activePanel === "quest" ? "none" : "quest";
     if (state.activePanel === "quest" && isStandingOnTown()) {
@@ -510,7 +546,7 @@ function handleAction(action: Action): void {
   }
 
   if (action.kind === "help") {
-    state.log.push("Keys: WASD/Arrows move • Enter use • I inventory • B shop (town) • G pick up • R renderer • F FOV • P save • O load.");
+    state.log.push("Keys: WASD/Arrows move • Shift+Move run (overworld) • M map • Enter use • I inventory • B shop (town) • Q quests (town) • G pick up • R renderer • F FOV • P save • O load.");
     render();
     return;
   }
@@ -538,6 +574,34 @@ function handleAction(action: Action): void {
 
 function playerTurn(action: Action): boolean {
   if (state.player.hp <= 0) return false;
+
+if (state.mode === "overworld" && state.autoPath && state.autoPath.length >= 2) {
+  // If the player presses a time-advancing key (move or space), advance one step along the path.
+  if (action.kind === "move" || action.kind === "wait") {
+    const next: Point = state.autoPath[1];
+    if (!canEnterOverworldTile(state.overworld, next)) {
+      state.log.push("Auto-walk blocked.");
+      state.destination = undefined;
+      state.autoPath = undefined;
+      return false;
+    }
+
+    state.player.pos = { x: next.x, y: next.y };
+    state.autoPath = state.autoPath.slice(1);
+
+    if (state.destination && state.player.pos.x === state.destination.x && state.player.pos.y === state.destination.y) {
+      state.log.push("Arrived at destination.");
+      state.destination = undefined;
+      state.autoPath = undefined;
+    }
+
+    const t = state.overworld.getTile(state.player.pos.x, state.player.pos.y);
+    if (t === "dungeon") state.log.push("Dungeon entrance found. Press Enter to enter.");
+    if (t === "town") state.log.push("Town found. Press Enter then B/Q.");
+
+    return true;
+  }
+}
 
   if (action.kind === "wait") {
     state.log.push("You wait.");
@@ -630,15 +694,29 @@ function tryMovePlayer(dx: number, dy: number): boolean {
     return true;
   }
 
-  if (!canEnterOverworldTile(state.overworld, target)) return false;
+// Overworld movement supports "run" (dx/dy can be +/-5 via shift). Move step-by-step so collisions work.
+  const steps: number = Math.max(Math.abs(dx), Math.abs(dy));
+  const stepX: number = dx === 0 ? 0 : (dx > 0 ? 1 : -1);
+  const stepY: number = dy === 0 ? 0 : (dy > 0 ? 1 : -1);
 
-  state.player.pos = target;
+  let moved: boolean = false;
 
-  const t = state.overworld.getTile(target.x, target.y);
-  if (t === "dungeon") state.log.push("Dungeon entrance found. Press Enter to enter.");
-  if (t === "town") state.log.push("Town found. Press Enter then B to shop.");
+  for (let i: number = 0; i < steps; i++) {
+    const next: Point = add(state.player.pos, { x: stepX, y: stepY });
+    if (!canEnterOverworldTile(state.overworld, next)) break;
+    state.player.pos = next;
+    moved = true;
 
-  return true;
+    // Auto-walk cancels if user manually moves.
+    state.destination = undefined;
+    state.autoPath = undefined;
+
+    const t = state.overworld.getTile(next.x, next.y);
+    if (t === "dungeon") state.log.push("Dungeon entrance found. Press Enter to enter.");
+    if (t === "town") state.log.push("Town found. Press Enter then B/Q.");
+  }
+
+  return moved;
 }
 
 function getEquippedAttackBonus(entity: Entity): number {
@@ -791,7 +869,31 @@ function goUpLevelOrExit(): void {
   state.log.push(`You ascend to depth ${prev.depth}.`);
 }
 
+function setDestination(dest: Point): void {
+  if (state.mode !== "overworld") return;
+
+  const path = aStar(
+    state.player.pos,
+    dest,
+    (p: Point) => canEnterOverworldTile(state.overworld, p),
+    (_p: Point) => false,
+    20000
+  );
+
+  if (!path || path.length < 2) {
+    state.log.push("No path found to destination.");
+    state.destination = undefined;
+    state.autoPath = undefined;
+    return;
+  }
+
+  state.destination = dest;
+  state.autoPath = path;
+  state.log.push(`Auto-walk set: ${dest.x}, ${dest.y}. Press any move/space to advance, or C to cancel.`);
+}
+
 function syncRendererUi(): void {
+
   const isAscii: boolean = state.rendererMode === "ascii";
   asciiEl.style.display = isAscii ? "block" : "none";
   canvasWrap.style.display = isAscii ? "none" : "block";
@@ -842,7 +944,26 @@ function render(): void {
 
   logEl.innerHTML = state.log.all().slice(0, 160).map((m) => `<div>• ${escapeHtml(m.text)}</div>`).join("");
 
+if (state.mapOpen) {
+    // Map overlay: render a larger overworld view in ASCII, with destination/path markers.
+    asciiEl.style.display = "block";
+    canvasWrap.style.display = "none";
+
+    const dest: Point | undefined = state.destination ?? { x: state.player.pos.x + state.mapCursor.x, y: state.player.pos.y + state.mapCursor.y };
+    asciiEl.textContent = renderOverworldMapAscii({
+      overworld: state.overworld,
+      player: state.player,
+      destination: dest,
+      autoPath: state.autoPath,
+      items: state.items
+    }, 89, 41);
+
+    return;
+  }
+
   if (state.rendererMode === "ascii") {
+    asciiEl.style.display = "block";
+    canvasWrap.style.display = "none";
     asciiEl.textContent = renderAscii({
       mode: state.mode,
       overworld: state.overworld,
@@ -853,6 +974,8 @@ function render(): void {
       useFov: state.useFov
     }, VIEW_W, VIEW_H);
   } else {
+    asciiEl.style.display = "none";
+    canvasWrap.style.display = "block";
     canvasRenderer.render({
       mode: state.mode,
       overworld: state.overworld,
@@ -1062,21 +1185,59 @@ function keyToAction(e: KeyboardEvent): Action | undefined {
   if (e.key === "i" || e.key === "I") return { kind: "toggleInventory" };
   if (e.key === "b" || e.key === "B") return { kind: "toggleShop" };
   if (e.key === "q" || e.key === "Q") return { kind: "toggleQuest" };
+  if (e.key === "m" || e.key === "M") return { kind: "toggleMap" };
 
   if (e.key === "g" || e.key === "G" || e.key === ",") return { kind: "pickup" };
 
   if (e.key === "Enter") return { kind: "use" };
+  if (e.key === "c" || e.key === "C") return { kind: "cancelAuto" };
   if (e.key === " ") return { kind: "wait" };
 
-  if (e.key === "ArrowUp" || e.key === "w" || e.key === "W") return { kind: "move", dx: 0, dy: -1 };
-  if (e.key === "ArrowDown" || e.key === "s" || e.key === "S") return { kind: "move", dx: 0, dy: 1 };
-  if (e.key === "ArrowLeft" || e.key === "a" || e.key === "A") return { kind: "move", dx: -1, dy: 0 };
-  if (e.key === "ArrowRight" || e.key === "d" || e.key === "D") return { kind: "move", dx: 1, dy: 0 };
+  if (e.key === "ArrowUp" || e.key === "w" || e.key === "W") return { kind: "move", dx: 0, dy: -1 * (e.shiftKey ? 5 : 1) };
+  if (e.key === "ArrowDown" || e.key === "s" || e.key === "S") return { kind: "move", dx: 0, dy: 1 * (e.shiftKey ? 5 : 1) };
+  if (e.key === "ArrowLeft" || e.key === "a" || e.key === "A") return { kind: "move", dx: -1 * (e.shiftKey ? 5 : 1), dy: 0 };
+  if (e.key === "ArrowRight" || e.key === "d" || e.key === "D") return { kind: "move", dx: 1 * (e.shiftKey ? 5 : 1), dy: 0 };
 
   return undefined;
 }
 
+function handleMapKey(e: KeyboardEvent): void {
+  // Cursor is relative to player.
+  if (e.key === "Escape" || e.key === "m" || e.key === "M") {
+    state.mapOpen = false;
+    render();
+    return;
+  }
+
+  const step: number = e.shiftKey ? 5 : 1;
+
+  if (e.key === "ArrowUp" || e.key === "w" || e.key === "W") state.mapCursor.y -= step;
+  if (e.key === "ArrowDown" || e.key === "s" || e.key === "S") state.mapCursor.y += step;
+  if (e.key === "ArrowLeft" || e.key === "a" || e.key === "A") state.mapCursor.x -= step;
+  if (e.key === "ArrowRight" || e.key === "d" || e.key === "D") state.mapCursor.x += step;
+
+  if (e.key === "c" || e.key === "C") {
+    state.destination = undefined;
+    state.autoPath = undefined;
+    state.log.push("Auto-walk canceled.");
+  }
+
+  if (e.key === "Enter") {
+    const dest = { x: state.player.pos.x + state.mapCursor.x, y: state.player.pos.y + state.mapCursor.y };
+    setDestination(dest);
+    state.mapOpen = false;
+  }
+
+  render();
+}
+
 window.addEventListener("keydown", (e: KeyboardEvent) => {
+  if (state.mapOpen) {
+    e.preventDefault();
+    handleMapKey(e);
+    return;
+  }
+
   const a: Action | undefined = keyToAction(e);
   if (!a) return;
   e.preventDefault();
@@ -1106,6 +1267,10 @@ btnLoad.addEventListener("click", () => { doLoad(); syncRendererUi(); render(); 
 
 btnInv.addEventListener("click", () => { state.activePanel = state.activePanel === "inventory" ? "none" : "inventory"; render(); });
 btnShop.addEventListener("click", () => { state.activePanel = state.activePanel === "shop" ? "none" : "shop"; if (state.activePanel === "shop" && isStandingOnTown()) ensureShopForTown(state, state.player.pos); render(); });
+
+btnMap.addEventListener("click", () => {
+  handleAction({ kind: "toggleMap" });
+});
 
 function doSave(): void {
   const dungeons: Dungeon[] = [...state.dungeons.values()];

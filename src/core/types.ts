@@ -72,6 +72,8 @@ export type Action =
   | { kind: "toggleInventory" }
   | { kind: "toggleShop" }
   | { kind: "toggleQuest" }
+  | { kind: "toggleMap" }
+  | { kind: "cancelAuto" }
   | { kind: "toggleRenderer" }
   | { kind: "toggleFov" }
   | { kind: "help" }

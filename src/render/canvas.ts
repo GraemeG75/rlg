@@ -2,6 +2,7 @@ import type { Entity, Item, Mode } from "../core/types";
 import type { Overworld } from "../maps/overworld";
 import type { Dungeon, DungeonTheme } from "../maps/dungeon";
 import { getDungeonTile, getVisibility } from "../maps/dungeon";
+import { SpriteAtlas, type SpriteKey } from "./sprites";
 
 export type CanvasRenderContext = {
   mode: Mode;
@@ -23,6 +24,7 @@ export class CanvasRenderer {
     if (!c) throw new Error("Canvas 2D context not available.");
     this.ctx = c;
     this.ctx.font = "12px monospace";
+    this.atlas = new SpriteAtlas(16);
   }
 
   public render(ctx: CanvasRenderContext, viewWidth: number, viewHeight: number): void {
@@ -127,32 +129,22 @@ export class CanvasRenderer {
     return undefined;
   }
 
-  private drawOverworldTile(tile: string, x: number, y: number, s: number): void {
-    switch (tile) {
-      case "water": this.ctx.fillStyle = "#0b355a"; break;
-      case "grass": this.ctx.fillStyle = "#11402a"; break;
-      case "forest": this.ctx.fillStyle = "#0e2a1b"; break;
-      case "mountain": this.ctx.fillStyle = "#3a3f46"; break;
-      case "road": this.ctx.fillStyle = "#253041"; break;
-      case "town": this.ctx.fillStyle = "#2b3b58"; break;
-      case "dungeon": this.ctx.fillStyle = "#553a8a"; break;
-      default: this.ctx.fillStyle = "#222"; break;
-    }
-    this.ctx.fillRect(x, y, s, s);
+private drawOverworldTile(tile: string, x: number, y: number, s: number): void {
+  const key: SpriteKey =
+    tile === "water" ? "ow_water" :
+    tile === "grass" ? "ow_grass" :
+    tile === "forest" ? "ow_forest" :
+    tile === "mountain" ? "ow_mountain" :
+    tile === "road" ? "ow_road" :
+    tile === "town" ? "ow_town" :
+    tile === "dungeon" ? "ow_dungeon" :
+    "ow_grass";
 
-    if (tile === "dungeon") {
-      this.ctx.fillStyle = "#e6d7ff";
-      this.ctx.fillText("D", x + 5, y + 12);
-    } else if (tile === "town") {
-      this.ctx.fillStyle = "#cfe3ff";
-      this.ctx.fillText("T", x + 5, y + 12);
-    } else if (tile === "road") {
-      this.ctx.fillStyle = "#93a7c8";
-      this.ctx.fillText("=", x + 5, y + 12);
-    }
-  }
+  const img: HTMLCanvasElement = this.atlas.get(key);
+  this.ctx.drawImage(img, x, y, s, s);
+}
 
-  private drawDungeonTile(theme: DungeonTheme, tile: string, x: number, y: number, s: number, alpha: number): void {
+private drawDungeonTile(theme: DungeonTheme, tile: string, x: number, y: number, s: number, alpha: number): void {
     this.ctx.globalAlpha = alpha;
 
     const pal = themePalette(theme);
