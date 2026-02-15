@@ -70,6 +70,31 @@ type ClassConfig = {
   intellect: number;
 };
 
+type GearSpec = {
+  name: string;
+  attackBonus?: number;
+  defenseBonus?: number;
+  value: number;
+  upgradeName: string;
+};
+
+type ClassGearConfig = {
+  weapon: GearSpec & { attackBonus: number };
+  armor: GearSpec & { defenseBonus: number };
+};
+
+type WeaponTemplate = {
+  noun: string;
+  baseAttack: number;
+  scale: number;
+};
+
+type ArmorTemplate = {
+  noun: string;
+  baseDefense: number;
+  scale: number;
+};
+
 const CLASS_CONFIG: Record<CharacterClass, ClassConfig> = {
   warrior: {
     name: 'Warrior',
@@ -103,6 +128,57 @@ const CLASS_CONFIG: Record<CharacterClass, ClassConfig> = {
   }
 };
 
+const CLASS_GEAR: Record<CharacterClass, ClassGearConfig> = {
+  warrior: {
+    weapon: { name: 'Bronze Greataxe', attackBonus: 3, value: 32, upgradeName: 'Tempered Greataxe' },
+    armor: { name: 'Steel Brigandine', defenseBonus: 2, value: 30, upgradeName: 'Runed Plate' }
+  },
+  rogue: {
+    weapon: { name: 'Twin Shadow Daggers', attackBonus: 2, value: 28, upgradeName: 'Nightspinner Blades' },
+    armor: { name: 'Silken Jerkin', defenseBonus: 1, value: 26, upgradeName: 'Eclipsed Leathers' }
+  },
+  mage: {
+    weapon: { name: 'Amber Focus Staff', attackBonus: 3, value: 30, upgradeName: 'Aetherfire Wand' },
+    armor: { name: 'Warded Robes', defenseBonus: 1, value: 24, upgradeName: 'Arcane Mantle' }
+  }
+};
+
+const WEAPON_PREFIXES: readonly string[] = [
+  'Sunforged',
+  'Stormcall',
+  'Glimmering',
+  'Nightfall',
+  'Emberforged',
+  'Voidbound',
+  'Ironchant',
+  'Frostvein'
+] as const;
+
+const WEAPON_SUFFIXES: readonly string[] = ['of the Fox', 'of Embers', 'of the Depths', 'of Dawn', 'of Ruin', 'of the Tempest', 'of Echoes'] as const;
+
+const WEAPON_BASES: readonly WeaponTemplate[] = [
+  { noun: 'Blade', baseAttack: 2, scale: 2 },
+  { noun: 'Halberd', baseAttack: 3, scale: 3 },
+  { noun: 'Longspear', baseAttack: 3, scale: 2 },
+  { noun: 'Warhammer', baseAttack: 4, scale: 4 },
+  { noun: 'Scimitar', baseAttack: 2, scale: 1 },
+  { noun: 'Greatsword', baseAttack: 4, scale: 3 },
+  { noun: 'Quarterstaff', baseAttack: 2, scale: 2 }
+] as const;
+
+const ARMOR_PREFIXES: readonly string[] = ['Runeward', 'Starwoven', 'Stoneplate', 'Whispersteel', 'Moonlit', 'Ashen', 'Verdant'] as const;
+
+const ARMOR_SUFFIXES: readonly string[] = ['of Resilience', 'of the Mirage', 'of the Glacier', 'of Sparks', 'of the Sentinel', 'of Cinders'] as const;
+
+const ARMOR_BASES: readonly ArmorTemplate[] = [
+  { noun: 'Vestments', baseDefense: 1, scale: 3 },
+  { noun: 'Scale Mail', baseDefense: 2, scale: 2 },
+  { noun: 'Battlemantle', baseDefense: 2, scale: 3 },
+  { noun: 'Coat', baseDefense: 1, scale: 2 },
+  { noun: 'Carapace', baseDefense: 3, scale: 4 },
+  { noun: 'Guardplate', baseDefense: 3, scale: 3 }
+] as const;
+
 function ensureClassAttributes(player: Entity, classType: CharacterClass): void {
   const cfg: ClassConfig = CLASS_CONFIG[classType];
   player.classType = classType;
@@ -110,6 +186,113 @@ function ensureClassAttributes(player: Entity, classType: CharacterClass): void 
   if (player.strength === undefined) player.strength = cfg.strength;
   if (player.agility === undefined) player.agility = cfg.agility;
   if (player.intellect === undefined) player.intellect = cfg.intellect;
+}
+
+function randChoice<T>(arr: readonly T[], rng: Rng): T {
+  return arr[rng.nextInt(0, arr.length)];
+}
+
+function buildItemName(prefix: string | undefined, base: string, suffix: string | undefined): string {
+  const parts: string[] = [];
+  if (prefix) parts.push(prefix);
+  parts.push(base);
+  if (suffix) parts.push(suffix);
+  return parts.join(' ');
+}
+
+function generateWeaponLoot(id: string, power: number, rng: Rng): Item {
+  const base: WeaponTemplate = randChoice(WEAPON_BASES, rng);
+  const prefix: string | undefined = rng.nextInt(0, 100) < 65 ? randChoice(WEAPON_PREFIXES, rng) : undefined;
+  const suffix: string | undefined = rng.nextInt(0, 100) < 55 ? randChoice(WEAPON_SUFFIXES, rng) : undefined;
+  const scaling: number = Math.max(1, Math.floor(Math.max(1, power) / base.scale));
+  const variance: number = rng.nextInt(0, 2);
+  const attackBonus: number = Math.max(1, base.baseAttack + scaling + variance);
+  const value: number = 16 + attackBonus * 9;
+  const name: string = buildItemName(prefix, base.noun, suffix);
+  return { id, kind: 'weapon', name, attackBonus, value };
+}
+
+function generateArmorLoot(id: string, power: number, rng: Rng): Item {
+  const base: ArmorTemplate = randChoice(ARMOR_BASES, rng);
+  const prefix: string | undefined = rng.nextInt(0, 100) < 60 ? randChoice(ARMOR_PREFIXES, rng) : undefined;
+  const suffix: string | undefined = rng.nextInt(0, 100) < 45 ? randChoice(ARMOR_SUFFIXES, rng) : undefined;
+  const scaling: number = Math.max(1, Math.floor(Math.max(1, power) / base.scale));
+  const variance: number = rng.nextInt(0, 2) === 0 ? 0 : 1;
+  const defenseBonus: number = Math.max(1, base.baseDefense + scaling + variance);
+  const value: number = 14 + defenseBonus * 8;
+  const name: string = buildItemName(prefix, base.noun, suffix);
+  return { id, kind: 'armor', name, defenseBonus, value };
+}
+
+function createGearItem(
+  id: string,
+  slot: 'weapon' | 'armor',
+  spec: GearSpec,
+  attackBonus: number | undefined,
+  defenseBonus: number | undefined,
+  value: number
+): Item {
+  if (slot === 'weapon') {
+    return { id, kind: 'weapon', name: spec.name, attackBonus: attackBonus ?? spec.attackBonus ?? 0, value };
+  }
+  return { id, kind: 'armor', name: spec.name, defenseBonus: defenseBonus ?? spec.defenseBonus ?? 0, value };
+}
+
+function ensureStartingGear(state: GameState, classType: CharacterClass): void {
+  const gear: ClassGearConfig | undefined = CLASS_GEAR[classType];
+  if (!gear) return;
+
+  const messages: string[] = [];
+
+  const weaponId: string = `starter_${classType}_weapon_${state.worldSeed}`;
+  const armorId: string = `starter_${classType}_armor_${state.worldSeed}`;
+
+  const hasWeaponItem: boolean = state.items.some((it) => it.id === weaponId);
+  const hasArmorItem: boolean = state.items.some((it) => it.id === armorId);
+
+  if (!state.player.equipment.weaponItemId || !hasWeaponItem) {
+    const weapon: Item = hasWeaponItem
+      ? (state.items.find((it) => it.id === weaponId) as Item)
+      : createGearItem(weaponId, 'weapon', gear.weapon, gear.weapon.attackBonus, undefined, gear.weapon.value);
+
+    if (!hasWeaponItem) state.items.push(weapon);
+    if (!state.player.inventory.includes(weapon.id)) state.player.inventory.push(weapon.id);
+    state.player.equipment.weaponItemId = weapon.id;
+    messages.push(gear.weapon.name);
+  }
+
+  if (!state.player.equipment.armorItemId || !hasArmorItem) {
+    const armor: Item = hasArmorItem
+      ? (state.items.find((it) => it.id === armorId) as Item)
+      : createGearItem(armorId, 'armor', gear.armor, undefined, gear.armor.defenseBonus, gear.armor.value);
+
+    if (!hasArmorItem) state.items.push(armor);
+    if (!state.player.inventory.includes(armor.id)) state.player.inventory.push(armor.id);
+    state.player.equipment.armorItemId = armor.id;
+    messages.push(gear.armor.name);
+  }
+
+  if (messages.length > 0) {
+    state.log.push(`Starting gear equipped: ${messages.join(' & ')}.`);
+  }
+}
+
+function createClassUpgradeItem(classType: CharacterClass, slot: 'weapon' | 'armor', dungeon: Dungeon, id: string, depth: number): Item {
+  const gear: ClassGearConfig = CLASS_GEAR[classType];
+  const spec: GearSpec = slot === 'weapon' ? gear.weapon : gear.armor;
+  const scaling: number = Math.max(1, Math.floor(depth / 2)) + 1;
+
+  if (slot === 'weapon') {
+    const attackBonus: number = spec.attackBonus! + scaling;
+    const name: string = `${spec.upgradeName} +${attackBonus - spec.attackBonus!}`;
+    const value: number = spec.value + scaling * 18;
+    return { id, kind: 'weapon', name, attackBonus, value };
+  }
+
+  const defenseBonus: number = spec.defenseBonus! + Math.max(1, Math.floor(scaling / 2));
+  const name: string = `${spec.upgradeName} +${defenseBonus - spec.defenseBonus!}`;
+  const value: number = spec.value + scaling * 16;
+  return { id, kind: 'armor', name, defenseBonus, value };
 }
 
 const asciiEl: HTMLElement = document.getElementById('ascii')!;
@@ -200,6 +383,7 @@ function newGame(worldSeed: number, classChoice: CharacterClass): GameState {
   state.log.push('I inventory • B shop (town) • Q quests (town) • G pick up items in dungeons.');
   state.log.push('P save • O load • R renderer • F FOV');
   state.log.push(`Class: ${cfg.name} • Str ${cfg.strength} • Agi ${cfg.agility} • Int ${cfg.intellect}.`);
+  ensureStartingGear(state, classChoice);
   return state;
 }
 
@@ -339,40 +523,31 @@ function spawnLootInDungeon(s: GameState, dungeon: Dungeon, seed: number): void 
   for (let i: number = 0; i < lootCount; i++) {
     const p: Point = randomFloorPoint(dungeon, seed + 5000 + i * 31);
     const roll: number = rng.nextInt(0, 100);
+    const baseId: string = `it_${dungeon.id}_${i}`;
 
     let item: Item;
     if (roll < 55) {
       item = {
-        id: `it_${dungeon.id}_${i}`,
+        id: baseId,
         kind: 'potion',
         name: dungeon.depth >= 4 ? 'Greater Healing Potion' : 'Healing Potion',
         healAmount: 8 + dungeon.depth * 2,
-        mapRef: { kind: 'dungeon', dungeonId: dungeon.id },
-        pos: p,
         value: 10 + dungeon.depth * 2
       };
-    } else if (roll < 85) {
-      item = {
-        id: `it_${dungeon.id}_${i}`,
-        kind: 'weapon',
-        name: dungeon.depth >= 4 ? 'Iron Sword' : 'Rusty Sword',
-        attackBonus: 2 + dungeon.depth,
-        mapRef: { kind: 'dungeon', dungeonId: dungeon.id },
-        pos: p,
-        value: 18 + dungeon.depth * 3
-      };
+    } else if (roll < 80) {
+      const power: number = Math.max(1, dungeon.depth + rng.nextInt(0, 2));
+      item = generateWeaponLoot(`${baseId}_w`, power, rng);
+    } else if (roll < 95) {
+      const power: number = Math.max(1, dungeon.depth + rng.nextInt(0, 2));
+      item = generateArmorLoot(`${baseId}_a`, power, rng);
     } else {
-      item = {
-        id: `it_${dungeon.id}_${i}`,
-        kind: 'armor',
-        name: dungeon.depth >= 4 ? 'Chain Vest' : 'Leather Armor',
-        defenseBonus: 1 + Math.floor(dungeon.depth / 2),
-        mapRef: { kind: 'dungeon', dungeonId: dungeon.id },
-        pos: p,
-        value: 18 + dungeon.depth * 3
-      };
+      const slot: 'weapon' | 'armor' = rng.nextInt(0, 2) === 0 ? 'weapon' : 'armor';
+      const upgradeId: string = `${baseId}_class_${slot}`;
+      item = createClassUpgradeItem(s.playerClass, slot, dungeon, upgradeId, dungeon.depth);
     }
 
+    item.mapRef = { kind: 'dungeon', dungeonId: dungeon.id };
+    item.pos = p;
     s.items.push(item);
   }
 }
@@ -486,6 +661,7 @@ function maybeRestockShop(s: GameState, shop: Shop): void {
   s.items = s.items.filter((it) => !oldIds.has(it.id));
 
   const stock: string[] = [];
+  const tierLevel: number = Math.max(1, Math.floor(s.turnCounter / restockInterval) + 1);
   for (let i: number = 0; i < 10; i++) {
     const roll: number = rng.nextInt(0, 100);
     const itemId: string = `shop_${shop.id}_${Math.floor(s.turnCounter / restockInterval)}_${i}`;
@@ -494,17 +670,48 @@ function maybeRestockShop(s: GameState, shop: Shop): void {
     if (roll < 45) {
       item = { id: itemId, kind: 'potion', name: 'Healing Potion', healAmount: 10, value: 14 };
     } else if (roll < 75) {
-      item = { id: itemId, kind: 'weapon', name: 'Steel Dagger', attackBonus: 3, value: 30 };
+      const power: number = tierLevel + rng.nextInt(0, 2);
+      item = generateWeaponLoot(itemId, power, rng);
     } else {
-      item = { id: itemId, kind: 'armor', name: 'Padded Vest', defenseBonus: 2, value: 28 };
+      const power: number = tierLevel + rng.nextInt(0, 2);
+      item = generateArmorLoot(itemId, power, rng);
     }
 
     s.items.push(item);
     stock.push(itemId);
   }
 
+  addClassGearToShop(s, shop.id, stock, Math.max(1, Math.floor(s.turnCounter / restockInterval)));
+
   shop.stockItemIds = stock;
   s.log.push('The shop has new stock.');
+}
+
+function addClassGearToShop(s: GameState, shopId: string, stock: string[], tier: number): void {
+  const gear: ClassGearConfig | undefined = CLASS_GEAR[s.playerClass];
+  if (!gear) return;
+
+  const existingIds: Set<string> = new Set<string>(stock);
+
+  const weaponId: string = `shop_${shopId}_class_weapon_${tier}`;
+  if (!existingIds.has(weaponId) && !s.items.some((it) => it.id === weaponId)) {
+    const attackBonus: number = gear.weapon.attackBonus + tier + 1;
+    const name: string = `${gear.weapon.upgradeName} +${attackBonus - gear.weapon.attackBonus}`;
+    const value: number = gear.weapon.value + 25 + tier * 18;
+    const item: Item = { id: weaponId, kind: 'weapon', name, attackBonus, value };
+    s.items.push(item);
+    stock.push(weaponId);
+  }
+
+  const armorId: string = `shop_${shopId}_class_armor_${tier}`;
+  if (!existingIds.has(armorId) && !s.items.some((it) => it.id === armorId)) {
+    const defenseBonus: number = gear.armor.defenseBonus + Math.max(1, Math.floor((tier + 1) / 2));
+    const name: string = `${gear.armor.upgradeName} +${defenseBonus - gear.armor.defenseBonus}`;
+    const value: number = gear.armor.value + 22 + tier * 16;
+    const item: Item = { id: armorId, kind: 'armor', name, defenseBonus, value };
+    s.items.push(item);
+    stock.push(armorId);
+  }
 }
 
 function ensureShopForTown(s: GameState, townPos: Point): Shop {
@@ -526,15 +733,19 @@ function ensureShopForTown(s: GameState, townPos: Point): Shop {
     if (roll < 45) {
       item = { id: itemId, kind: 'potion', name: 'Healing Potion', healAmount: 10, value: 14 };
     } else if (roll < 75) {
-      item = { id: itemId, kind: 'weapon', name: 'Steel Dagger', attackBonus: 3, value: 30 };
+      const power: number = 1 + rng.nextInt(0, 2);
+      item = generateWeaponLoot(itemId, power, rng);
     } else {
-      item = { id: itemId, kind: 'armor', name: 'Padded Vest', defenseBonus: 2, value: 28 };
+      const power: number = 1 + rng.nextInt(0, 2);
+      item = generateArmorLoot(itemId, power, rng);
     }
 
     // Shop stock is not placed on the map.
     s.items.push(item);
     stock.push(itemId);
   }
+
+  addClassGearToShop(s, shopId, stock, 0);
 
   const created: Shop = { id: shopId, townWorldPos: { x: townPos.x, y: townPos.y }, stockItemIds: stock };
   s.shops.set(shopId, created);
@@ -1592,6 +1803,7 @@ function doLoad(): void {
     log: new MessageLog(160)
   };
 
+  ensureStartingGear(state, loadedClass);
   pendingClass = loadedClass;
   pendingSeed = data.worldSeed;
   hideClassModal();
