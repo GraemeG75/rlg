@@ -5,7 +5,6 @@ import { getDungeonTile, isDungeonOpaque, setVisibility } from "../maps/dungeon"
 
 function bresenhamLine(a: Point, b: Point): Point[] {
   const points: Point[] = [];
-
   let x0: number = a.x;
   let y0: number = a.y;
   const x1: number = b.x;
@@ -13,7 +12,6 @@ function bresenhamLine(a: Point, b: Point): Point[] {
 
   const dx: number = Math.abs(x1 - x0);
   const dy: number = Math.abs(y1 - y0);
-
   const sx: number = x0 < x1 ? 1 : -1;
   const sy: number = y0 < y1 ? 1 : -1;
 

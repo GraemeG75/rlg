@@ -25,21 +25,15 @@ export function aStar(
   while (openSet.size > 0 && iterations < maxIterations) {
     iterations++;
 
-    // current = node in openSet with lowest fScore
     let currentKey: string | undefined;
     let currentF: number = Number.POSITIVE_INFINITY;
     for (const k of openSet) {
       const f: number = fScore.get(k) ?? Number.POSITIVE_INFINITY;
-      if (f < currentF) {
-        currentF = f;
-        currentKey = k;
-      }
+      if (f < currentF) { currentF = f; currentKey = k; }
     }
     if (!currentKey) break;
 
-    if (currentKey === goalKey) {
-      return reconstructPath(cameFrom, currentKey);
-    }
+    if (currentKey === goalKey) return reconstructPath(cameFrom, currentKey);
 
     openSet.delete(currentKey);
 

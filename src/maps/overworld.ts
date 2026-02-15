@@ -55,7 +55,6 @@ function isValidPoiBase(tile: OverworldTile): boolean {
 }
 
 function carveRoad(tiles: OverworldTile[], a: Point, b: Point): void {
-  // L-shaped for chunk-local coords
   let x: number = a.x;
   let y: number = a.y;
 
@@ -77,7 +76,6 @@ export function generateOverworldChunk(worldSeed: number, chunkX: number, chunkY
   const tiles: OverworldTile[] = new Array<OverworldTile>(CHUNK_SIZE * CHUNK_SIZE);
   const towns: Point[] = [];
 
-  // biome noise (cheap stable per tile)
   for (let y: number = 0; y < CHUNK_SIZE; y++) {
     for (let x: number = 0; x < CHUNK_SIZE; x++) {
       const tileSeed: number = hash2D(chunkSeed, x, y);
@@ -97,7 +95,6 @@ export function generateOverworldChunk(worldSeed: number, chunkX: number, chunkY
     }
   }
 
-  // towns: 0-2 per chunk, then connect by roads
   const townCount: number = rng.nextInt(0, 3);
   for (let i: number = 0; i < townCount; i++) {
     const tx: number = rng.nextInt(3, CHUNK_SIZE - 3);
@@ -110,7 +107,6 @@ export function generateOverworldChunk(worldSeed: number, chunkX: number, chunkY
   }
 
   if (towns.length >= 2) {
-    // connect each town to nearest (simple)
     for (const t of towns) {
       let best: Point | undefined;
       let bestDist: number = 999999;
@@ -123,7 +119,6 @@ export function generateOverworldChunk(worldSeed: number, chunkX: number, chunkY
     }
   }
 
-  // dungeons: 0-2 per chunk, avoid on roads/towns where possible
   const entranceCount: number = rng.nextInt(0, 3);
   for (let i: number = 0; i < entranceCount; i++) {
     const ex: number = rng.nextInt(0, CHUNK_SIZE);
@@ -150,4 +145,8 @@ export function dungeonLevelId(baseId: string, depth: number): string {
 
 export function dungeonSeedFromWorldPos(worldSeed: number, worldX: number, worldY: number): number {
   return hash2D(worldSeed, worldX, worldY);
+}
+
+export function townIdFromWorldPos(worldSeed: number, worldX: number, worldY: number): string {
+  return `town_${worldSeed}_${worldX}_${worldY}`;
 }

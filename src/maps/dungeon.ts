@@ -1,16 +1,19 @@
 import { Rng } from "../core/rng";
 import type { DungeonTile, Point, TileVisibility } from "../core/types";
 
+export type DungeonTheme = "crypt" | "caves" | "ruins";
+
 export type Dungeon = {
   id: string;
   baseId: string;
   depth: number;
+  theme: DungeonTheme;
 
   width: number;
   height: number;
 
-  tiles: DungeonTile[];         // width*height
-  visibility: TileVisibility[]; // width*height (fog of war)
+  tiles: DungeonTile[];
+  visibility: TileVisibility[];
 
   stairsUp: Point;
   stairsDown: Point;
@@ -30,10 +33,6 @@ export function isDungeonOpaque(tile: DungeonTile): boolean {
 
 export function getDungeonTile(dungeon: Dungeon, x: number, y: number): DungeonTile {
   return dungeon.tiles[idx(x, y, dungeon.width)];
-}
-
-export function setDungeonTile(dungeon: Dungeon, x: number, y: number, tile: DungeonTile): void {
-  dungeon.tiles[idx(x, y, dungeon.width)] = tile;
 }
 
 export function getVisibility(dungeon: Dungeon, x: number, y: number): TileVisibility {
@@ -65,25 +64,12 @@ export function generateDungeon(dungeonId: string, baseId: string, depth: number
     let y: number = a.y;
 
     if (rng.nextInt(0, 2) === 0) {
-      while (x !== b.x) {
-        tiles[idx(x, y, width)] = "floor";
-        x += x < b.x ? 1 : -1;
-      }
-      while (y !== b.y) {
-        tiles[idx(x, y, width)] = "floor";
-        y += y < b.y ? 1 : -1;
-      }
+      while (x !== b.x) { tiles[idx(x, y, width)] = "floor"; x += x < b.x ? 1 : -1; }
+      while (y !== b.y) { tiles[idx(x, y, width)] = "floor"; y += y < b.y ? 1 : -1; }
     } else {
-      while (y !== b.y) {
-        tiles[idx(x, y, width)] = "floor";
-        y += y < b.y ? 1 : -1;
-      }
-      while (x !== b.x) {
-        tiles[idx(x, y, width)] = "floor";
-        x += x < b.x ? 1 : -1;
-      }
+      while (y !== b.y) { tiles[idx(x, y, width)] = "floor"; y += y < b.y ? 1 : -1; }
+      while (x !== b.x) { tiles[idx(x, y, width)] = "floor"; x += x < b.x ? 1 : -1; }
     }
-
     tiles[idx(x, y, width)] = "floor";
   }
 
@@ -98,14 +84,8 @@ export function generateDungeon(dungeonId: string, baseId: string, depth: number
     let overlaps: boolean = false;
     for (const r of rooms) {
       const pad: number = 1;
-      if (
-        rx < r.x + r.w + pad &&
-        rx + rw + pad > r.x &&
-        ry < r.y + r.h + pad &&
-        ry + rh + pad > r.y
-      ) {
-        overlaps = true;
-        break;
+      if (rx < r.x + r.w + pad && rx + rw + pad > r.x && ry < r.y + r.h + pad && ry + rh + pad > r.y) {
+        overlaps = true; break;
       }
     }
     if (overlaps) continue;
@@ -114,9 +94,7 @@ export function generateDungeon(dungeonId: string, baseId: string, depth: number
     const center: Point = { x: rx + Math.floor(rw / 2), y: ry + Math.floor(rh / 2) };
     rooms.push({ x: rx, y: ry, w: rw, h: rh, center });
 
-    if (rooms.length > 1) {
-      carveCorridor(rooms[rooms.length - 2].center, center);
-    }
+    if (rooms.length > 1) carveCorridor(rooms[rooms.length - 2].center, center);
   }
 
   const stairsUp: Point = rooms.length > 0 ? rooms[0].center : { x: 2, y: 2 };
@@ -125,7 +103,9 @@ export function generateDungeon(dungeonId: string, baseId: string, depth: number
   tiles[idx(stairsUp.x, stairsUp.y, width)] = "stairsUp";
   tiles[idx(stairsDown.x, stairsDown.y, width)] = "stairsDown";
 
-  return { id: dungeonId, baseId, depth, width, height, tiles, visibility, stairsUp, stairsDown };
+  const theme: DungeonTheme = pickTheme(depth);
+
+  return { id: dungeonId, baseId, depth, theme, width, height, tiles, visibility, stairsUp, stairsDown };
 }
 
 export function randomFloorPoint(dungeon: Dungeon, seed: number): Point {
@@ -137,4 +117,10 @@ export function randomFloorPoint(dungeon: Dungeon, seed: number): Point {
     if (t === "floor") return { x, y };
   }
   return { x: dungeon.stairsDown.x, y: dungeon.stairsDown.y };
+}
+
+function pickTheme(depth: number): DungeonTheme {
+  if (depth < 3) return "ruins";
+  if (depth < 6) return "caves";
+  return "crypt";
 }

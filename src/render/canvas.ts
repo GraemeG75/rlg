@@ -1,6 +1,6 @@
 import type { Entity, Item, Mode } from "../core/types";
 import type { Overworld } from "../maps/overworld";
-import type { Dungeon } from "../maps/dungeon";
+import type { Dungeon, DungeonTheme } from "../maps/dungeon";
 import { getDungeonTile, getVisibility } from "../maps/dungeon";
 
 export type CanvasRenderContext = {
@@ -55,27 +55,25 @@ export class CanvasRenderer {
             const v = getVisibility(dungeon, wx, wy);
             if (v === "unseen") continue;
             if (v === "seen") {
-              this.drawDungeonTile(getDungeonTile(dungeon, wx, wy), px, py, tileSize, 0.35);
+              this.drawDungeonTile(dungeon.theme, getDungeonTile(dungeon, wx, wy), px, py, tileSize, 0.35);
             } else {
-              this.drawDungeonTile(getDungeonTile(dungeon, wx, wy), px, py, tileSize, 1.0);
+              this.drawDungeonTile(dungeon.theme, getDungeonTile(dungeon, wx, wy), px, py, tileSize, 1.0);
             }
           } else {
-            this.drawDungeonTile(getDungeonTile(dungeon, wx, wy), px, py, tileSize, 1.0);
+            this.drawDungeonTile(dungeon.theme, getDungeonTile(dungeon, wx, wy), px, py, tileSize, 1.0);
           }
         }
 
-        // items (under entities)
         const it: Item | undefined = this.findItemAt(ctx, wx, wy);
         if (it) {
           this.ctx.fillStyle = "#ffd36b";
           this.ctx.fillText(itemGlyph(it.kind), px + 5, py + 12);
         }
 
-        // entities
         const monster: Entity | undefined = this.findMonsterAt(ctx, wx, wy);
         if (monster) {
           this.ctx.fillStyle = "#7CFF9E";
-          this.ctx.fillText("g", px + 5, py + 12);
+          this.ctx.fillText(monster.glyph, px + 5, py + 12);
         }
 
         if (x === 0 && y === 0) {
@@ -89,6 +87,8 @@ export class CanvasRenderer {
   private findMonsterAt(ctx: CanvasRenderContext, x: number, y: number): Entity | undefined {
     for (const e of ctx.entities) {
       if (e.kind !== "monster") continue;
+      if (e.hp <= 0) continue;
+
       if (ctx.mode === "overworld") {
         if (e.mapRef.kind !== "overworld") continue;
         if (e.pos.x === x && e.pos.y === y) return e;
@@ -152,24 +152,28 @@ export class CanvasRenderer {
     }
   }
 
-  private drawDungeonTile(tile: string, x: number, y: number, s: number, alpha: number): void {
+  private drawDungeonTile(theme: DungeonTheme, tile: string, x: number, y: number, s: number, alpha: number): void {
     this.ctx.globalAlpha = alpha;
+
+    const pal = themePalette(theme);
+
     switch (tile) {
-      case "wall": this.ctx.fillStyle = "#1b2430"; break;
-      case "floor": this.ctx.fillStyle = "#0b1320"; break;
-      case "stairsUp": this.ctx.fillStyle = "#122033"; break;
-      case "stairsDown": this.ctx.fillStyle = "#122033"; break;
+      case "wall": this.ctx.fillStyle = pal.wall; break;
+      case "floor": this.ctx.fillStyle = pal.floor; break;
+      case "stairsUp": this.ctx.fillStyle = pal.stairs; break;
+      case "stairsDown": this.ctx.fillStyle = pal.stairs; break;
       default: this.ctx.fillStyle = "#222"; break;
     }
+
     this.ctx.fillRect(x, y, s, s);
     this.ctx.globalAlpha = 1.0;
 
     if (tile === "stairsUp") {
-      this.ctx.fillStyle = "#cfe3ff";
+      this.ctx.fillStyle = pal.glyph;
       this.ctx.fillText("<", x + 5, y + 12);
     }
     if (tile === "stairsDown") {
-      this.ctx.fillStyle = "#cfe3ff";
+      this.ctx.fillStyle = pal.glyph;
       this.ctx.fillText(">", x + 5, y + 12);
     }
   }
@@ -181,5 +185,14 @@ function itemGlyph(kind: string): string {
     case "weapon": return ")";
     case "armor": return "]";
     default: return "?";
+  }
+}
+
+function themePalette(theme: DungeonTheme): { wall: string; floor: string; stairs: string; glyph: string } {
+  switch (theme) {
+    case "ruins": return { wall: "#202a36", floor: "#0b1320", stairs: "#15243a", glyph: "#cfe3ff" };
+    case "caves": return { wall: "#1f2a20", floor: "#0a130c", stairs: "#17301a", glyph: "#cfe3ff" };
+    case "crypt": return { wall: "#2a1a2f", floor: "#120914", stairs: "#2c1231", glyph: "#e6d7ff" };
+    default: return { wall: "#1b2430", floor: "#0b1320", stairs: "#122033", glyph: "#cfe3ff" };
   }
 }

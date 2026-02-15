@@ -27,22 +27,13 @@ export function renderAscii(ctx: RenderContext, viewWidth: number, viewHeight: n
       const wx: number = originX + x;
       const wy: number = originY + y;
 
-      if (x === 0 && y === 0) {
-        out += "@";
-        continue;
-      }
+      if (x === 0 && y === 0) { out += "@"; continue; }
 
       const entityChar: string | undefined = findEntityChar(ctx, wx, wy);
-      if (entityChar) {
-        out += entityChar;
-        continue;
-      }
+      if (entityChar) { out += entityChar; continue; }
 
       const itemChar: string | undefined = findItemChar(ctx, wx, wy);
-      if (itemChar) {
-        out += itemChar;
-        continue;
-      }
+      if (itemChar) { out += itemChar; continue; }
 
       if (ctx.mode === "overworld") {
         const t = ctx.overworld.getTile(wx, wy);
@@ -55,7 +46,6 @@ export function renderAscii(ctx: RenderContext, viewWidth: number, viewHeight: n
         if (ctx.useFov) {
           const v = getVisibility(dungeon, wx, wy);
           if (v === "unseen") { out += " "; continue; }
-          // 'seen' renders normally for simplicity; you can dim via CSS later if you want.
         }
 
         out += dungeonChar(getDungeonTile(dungeon, wx, wy));
@@ -70,6 +60,7 @@ export function renderAscii(ctx: RenderContext, viewWidth: number, viewHeight: n
 function findEntityChar(ctx: RenderContext, x: number, y: number): string | undefined {
   for (const e of ctx.entities) {
     if (e.kind !== "monster") continue;
+    if (e.hp <= 0) continue;
 
     if (ctx.mode === "overworld") {
       if (e.mapRef.kind !== "overworld") continue;
@@ -84,7 +75,7 @@ function findEntityChar(ctx: RenderContext, x: number, y: number): string | unde
       }
     }
 
-    if (e.pos.x === x && e.pos.y === y) return "g";
+    if (e.pos.x === x && e.pos.y === y) return e.glyph;
   }
 
   return undefined;

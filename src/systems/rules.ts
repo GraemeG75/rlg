@@ -11,7 +11,7 @@ export function isBlockedByEntity(entities: Entity[], mapKind: "overworld" | "du
       if (e.mapRef.kind !== "dungeon") continue;
       if (e.mapRef.dungeonId !== dungeonId) continue;
     }
-    if (e.pos.x === pos.x && e.pos.y === pos.y) return e;
+    if (e.pos.x === pos.x && e.pos.y === pos.y && e.hp > 0) return e;
   }
   return undefined;
 }

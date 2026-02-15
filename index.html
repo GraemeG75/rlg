@@ -3,7 +3,7 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width,initial-scale=1" />
-    <title>Web Roguelike Starter++</title>
+    <title>Web Roguelike Starter+++</title>
     <style>
       :root { color-scheme: dark; }
       body {
@@ -15,7 +15,7 @@
       }
       .wrap {
         display: grid;
-        grid-template-columns: 1fr 360px;
+        grid-template-columns: 1fr 420px;
         gap: 12px;
         align-items: start;
       }
@@ -46,14 +46,14 @@
         margin-top: 10px;
         border-top: 1px solid #1a2433;
         padding-top: 10px;
-        max-height: 300px;
+        max-height: 220px;
         overflow: auto;
       }
-      #inv {
+      #panel {
         margin-top: 10px;
         border-top: 1px solid #1a2433;
         padding-top: 10px;
-        max-height: 220px;
+        max-height: 320px;
         overflow: auto;
       }
       .hint { color: #8db3ff; font-size: 12px; }
@@ -72,6 +72,11 @@
       .small { font-size: 12px; color: #a9c5ff; }
       .muted { color: #93a7c8; }
       b { color: #e7f0ff; }
+      .panelTitle { display:flex; justify-content: space-between; align-items: baseline; }
+      .grid { display:grid; grid-template-columns: 1fr auto; gap: 6px 8px; align-items:center; }
+      .btnTiny { padding: 4px 8px; border-radius: 8px; font-size: 12px; }
+      .sep { border-top: 1px solid #1a2433; margin: 8px 0; }
+      .tag { font-size: 11px; padding: 2px 6px; border: 1px solid #1a2433; border-radius: 999px; background: #0b1320; color: #93a7c8; }
     </style>
   </head>
   <body>
@@ -80,7 +85,7 @@
         <div class="row" style="margin-bottom: 10px;">
           <span class="pill" id="modePill"></span>
           <span class="pill" id="renderPill"></span>
-          <span class="hint">Move: WASD/Arrows • Enter use • R renderer • F FOV • G pick up • U use • E equip • P save • O load</span>
+          <span class="hint">Move WASD/Arrows • Enter use • I inventory • B shop • G pick up • R renderer • F FOV • P save • O load</span>
         </div>
 
         <div id="ascii"></div>
@@ -97,15 +102,17 @@
           <button id="btnNewSeed">New Seed</button>
           <button id="btnSave">Save</button>
           <button id="btnLoad">Load</button>
+          <button id="btnInv">Inventory</button>
+          <button id="btnShop">Shop</button>
         </div>
 
         <div class="hint" style="margin-top: 10px;">
-          Overworld: find <b>D</b> dungeons, <b>T</b> towns, <b>=</b> roads.
-          Dungeons persist per entrance and have multiple levels (<b>&gt;</b> down, <b>&lt;</b> up).
+          Overworld: <b>D</b> dungeons, <b>T</b> towns, <b>=</b> roads. Dungeons have levels (<b>&gt;</b>/<b>&lt;</b>).
+          Monsters use A* pathing when they can see you.
         </div>
 
         <div id="stats" style="margin-top: 10px;"></div>
-        <div id="inv"></div>
+        <div id="panel"></div>
         <div id="log"></div>
       </div>
     </div>
