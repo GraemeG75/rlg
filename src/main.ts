@@ -1,22 +1,22 @@
-import type { Action, Entity, Item, Mode, Point, Shop } from "./core/types";
-import { Rng } from "./core/rng";
-import { add, manhattan } from "./core/util";
-import { Overworld, dungeonBaseIdFromWorldPos, dungeonLevelId, dungeonSeedFromWorldPos, townIdFromWorldPos } from "./maps/overworld";
-import type { Dungeon } from "./maps/dungeon";
-import { generateDungeon, getDungeonTile, randomFloorPoint } from "./maps/dungeon";
-import { computeDungeonFov, decayVisibilityToSeen } from "./systems/fov";
-import { canEnterDungeonTile, canEnterOverworldTile, isBlockedByEntity } from "./systems/rules";
-import { nextMonsterStep } from "./systems/ai";
-import { renderAscii } from "./render/ascii";
-import { CanvasRenderer } from "./render/canvas";
-import { MessageLog } from "./ui/log";
-import { loadFromLocalStorage, saveToLocalStorage, type SaveDataV3 } from "./core/save";
-import { renderPanelHtml, type PanelMode } from "./ui/panel";
-import { renderOverworldMapAscii } from "./ui/map";
-import { aStar } from "./systems/astar";
-import { hash2D } from "./core/hash";
+import type { Action, Entity, Item, Mode, Point, Shop } from './core/types';
+import { Rng } from './core/rng';
+import { add, manhattan } from './core/util';
+import { Overworld, dungeonBaseIdFromWorldPos, dungeonLevelId, dungeonSeedFromWorldPos, townIdFromWorldPos } from './maps/overworld';
+import type { Dungeon } from './maps/dungeon';
+import { generateDungeon, getDungeonTile, randomFloorPoint } from './maps/dungeon';
+import { computeDungeonFov, decayVisibilityToSeen } from './systems/fov';
+import { canEnterDungeonTile, canEnterOverworldTile, isBlockedByEntity } from './systems/rules';
+import { nextMonsterStep } from './systems/ai';
+import { renderAscii } from './render/ascii';
+import { PixiRenderer } from './render/pixi';
+import { MessageLog } from './ui/log';
+import { loadFromLocalStorage, saveToLocalStorage, type SaveDataV3 } from './core/save';
+import { renderPanelHtml, type PanelMode } from './ui/panel';
+import { renderOverworldMapAscii } from './ui/map';
+import { aStar } from './systems/astar';
+import { hash2D } from './core/hash';
 
-type RendererMode = "ascii" | "canvas";
+type RendererMode = 'ascii' | 'canvas';
 
 type DungeonStackFrame = {
   baseId: string;
@@ -45,10 +45,10 @@ type GameState = {
   useFov: boolean;
 
   activePanel: PanelMode;
-  shopCategory: "all" | "potion" | "weapon" | "armor";
+  shopCategory: 'all' | 'potion' | 'weapon' | 'armor';
 
   turnCounter: number;
-  quests: import("./core/types").Quest[];
+  quests: import('./core/types').Quest[];
 
   // Navigation helpers
   mapOpen: boolean;
@@ -62,37 +62,39 @@ type GameState = {
 const VIEW_W: number = 61;
 const VIEW_H: number = 33;
 
-const asciiEl: HTMLElement = document.getElementById("ascii")!;
-const canvasWrap: HTMLElement = document.getElementById("canvasWrap")!;
-const modePill: HTMLElement = document.getElementById("modePill")!;
-const renderPill: HTMLElement = document.getElementById("renderPill")!;
-const statsEl: HTMLElement = document.getElementById("stats")!;
-const panelEl: HTMLElement = document.getElementById("panel")!;
-const logEl: HTMLElement = document.getElementById("log")!;
+const asciiEl: HTMLElement = document.getElementById('ascii')!;
+const canvasWrap: HTMLElement = document.getElementById('canvasWrap')!;
+const modePill: HTMLElement = document.getElementById('modePill')!;
+const renderPill: HTMLElement = document.getElementById('renderPill')!;
+const statsEl: HTMLElement = document.getElementById('stats')!;
+const panelEl: HTMLElement = document.getElementById('panel')!;
+const logEl: HTMLElement = document.getElementById('log')!;
 
-const btnAscii: HTMLButtonElement = document.getElementById("btnAscii") as HTMLButtonElement;
-const btnCanvas: HTMLButtonElement = document.getElementById("btnCanvas") as HTMLButtonElement;
-const btnNewSeed: HTMLButtonElement = document.getElementById("btnNewSeed") as HTMLButtonElement;
-const btnSave: HTMLButtonElement = document.getElementById("btnSave") as HTMLButtonElement;
-const btnLoad: HTMLButtonElement = document.getElementById("btnLoad") as HTMLButtonElement;
-const btnInv: HTMLButtonElement = document.getElementById("btnInv") as HTMLButtonElement;
-const btnShop: HTMLButtonElement = document.getElementById("btnShop") as HTMLButtonElement;
-const btnMap: HTMLButtonElement = document.getElementById("btnMap") as HTMLButtonElement;
+const btnAscii: HTMLButtonElement = document.getElementById('btnAscii') as HTMLButtonElement;
+const btnCanvas: HTMLButtonElement = document.getElementById('btnCanvas') as HTMLButtonElement;
+const btnNewSeed: HTMLButtonElement = document.getElementById('btnNewSeed') as HTMLButtonElement;
+const btnSave: HTMLButtonElement = document.getElementById('btnSave') as HTMLButtonElement;
+const btnLoad: HTMLButtonElement = document.getElementById('btnLoad') as HTMLButtonElement;
+const btnInv: HTMLButtonElement = document.getElementById('btnInv') as HTMLButtonElement;
+const btnShop: HTMLButtonElement = document.getElementById('btnShop') as HTMLButtonElement;
+const btnMap: HTMLButtonElement = document.getElementById('btnMap') as HTMLButtonElement;
 
-const canvas: HTMLCanvasElement = document.getElementById("gameCanvas") as HTMLCanvasElement;
-const canvasRenderer: CanvasRenderer = new CanvasRenderer(canvas);
+const canvas: HTMLCanvasElement = document.getElementById('gameCanvas') as HTMLCanvasElement;
+const canvasRenderer: PixiRenderer = new PixiRenderer(canvas);
+const PIXI_VIEW_W: number = Math.max(1, Math.floor(canvas.width / 16) - 1);
+const PIXI_VIEW_H: number = Math.max(1, Math.floor(canvas.height / 16) - 1);
 
 function newGame(worldSeed: number): GameState {
   const rng: Rng = new Rng(worldSeed);
   const overworld: Overworld = new Overworld(worldSeed);
 
   const player: Entity = {
-    id: "player",
-    kind: "player",
-    name: "You",
-    glyph: "@",
+    id: 'player',
+    kind: 'player',
+    name: 'You',
+    glyph: '@',
     pos: findStartPosition(overworld, rng),
-    mapRef: { kind: "overworld" },
+    mapRef: { kind: 'overworld' },
     hp: 20,
     maxHp: 20,
     baseAttack: 2,
@@ -108,7 +110,7 @@ function newGame(worldSeed: number): GameState {
   const state: GameState = {
     worldSeed,
     rng,
-    mode: "overworld",
+    mode: 'overworld',
     overworld,
     dungeons: new Map<string, Dungeon>(),
     dungeonStack: [],
@@ -116,10 +118,10 @@ function newGame(worldSeed: number): GameState {
     entities: [player],
     items: [],
     shops: new Map<string, Shop>(),
-    rendererMode: "ascii",
+    rendererMode: 'ascii',
     useFov: true,
-    activePanel: "none",
-    shopCategory: "all",
+    activePanel: 'none',
+    shopCategory: 'all',
     turnCounter: 0,
     quests: [],
     mapOpen: false,
@@ -129,9 +131,9 @@ function newGame(worldSeed: number): GameState {
     log: new MessageLog(160)
   };
 
-  state.log.push("Welcome. Find a town (T) to shop or a dungeon (D) to descend.");
-  state.log.push("I inventory • B shop (town) • Q quests (town) • G pick up items in dungeons.");
-  state.log.push("P save • O load • R renderer • F FOV");
+  state.log.push('Welcome. Find a town (T) to shop or a dungeon (D) to descend.');
+  state.log.push('I inventory • B shop (town) • Q quests (town) • G pick up items in dungeons.');
+  state.log.push('P save • O load • R renderer • F FOV');
   return state;
 }
 
@@ -147,7 +149,7 @@ function findStartPosition(overworld: Overworld, rng: Rng): Point {
 let state: GameState = newGame(Date.now() & 0xffffffff);
 
 function getCurrentDungeon(s: GameState): Dungeon | undefined {
-  if (s.player.mapRef.kind !== "dungeon") return undefined;
+  if (s.player.mapRef.kind !== 'dungeon') return undefined;
   return s.dungeons.get(s.player.mapRef.dungeonId);
 }
 
@@ -170,7 +172,7 @@ function ensureDungeonLevel(s: GameState, baseId: string, depth: number, entranc
 
 function spawnMonstersInDungeon(s: GameState, dungeon: Dungeon, seed: number): void {
   const monsterCount: number = 5 + Math.min(12, dungeon.depth * 2);
-  const rng: Rng = new Rng(seed ^ 0xBEEF);
+  const rng: Rng = new Rng(seed ^ 0xbeef);
 
   for (let i: number = 0; i < monsterCount; i++) {
     const p: Point = randomFloorPoint(dungeon, seed + 1000 + i * 17);
@@ -187,11 +189,11 @@ function createMonsterForDepth(depth: number, roll: number, rng: Rng, dungeonId:
   if (roll < 35) {
     return {
       id: `m_${dungeonId}_${i}`,
-      kind: "monster",
-      name: "Slime",
-      glyph: "s",
+      kind: 'monster',
+      name: 'Slime',
+      glyph: 's',
       pos: p,
-      mapRef: { kind: "dungeon", dungeonId },
+      mapRef: { kind: 'dungeon', dungeonId },
       hp: 4 + depth,
       maxHp: 4 + depth,
       baseAttack: 1 + Math.floor(depth / 2),
@@ -207,11 +209,11 @@ function createMonsterForDepth(depth: number, roll: number, rng: Rng, dungeonId:
   if (roll < 75) {
     return {
       id: `m_${dungeonId}_${i}`,
-      kind: "monster",
-      name: "Goblin",
-      glyph: "g",
+      kind: 'monster',
+      name: 'Goblin',
+      glyph: 'g',
       pos: p,
-      mapRef: { kind: "dungeon", dungeonId },
+      mapRef: { kind: 'dungeon', dungeonId },
       hp: 6 + depth * 2,
       maxHp: 6 + depth * 2,
       baseAttack: 2 + depth,
@@ -226,11 +228,11 @@ function createMonsterForDepth(depth: number, roll: number, rng: Rng, dungeonId:
 
   return {
     id: `m_${dungeonId}_${i}`,
-    kind: "monster",
-    name: "Orc",
-    glyph: "O",
+    kind: 'monster',
+    name: 'Orc',
+    glyph: 'O',
     pos: p,
-    mapRef: { kind: "dungeon", dungeonId },
+    mapRef: { kind: 'dungeon', dungeonId },
     hp: 10 + depth * 3,
     maxHp: 10 + depth * 3,
     baseAttack: 3 + depth,
@@ -256,30 +258,30 @@ function spawnLootInDungeon(s: GameState, dungeon: Dungeon, seed: number): void 
     if (roll < 55) {
       item = {
         id: `it_${dungeon.id}_${i}`,
-        kind: "potion",
-        name: dungeon.depth >= 4 ? "Greater Healing Potion" : "Healing Potion",
+        kind: 'potion',
+        name: dungeon.depth >= 4 ? 'Greater Healing Potion' : 'Healing Potion',
         healAmount: 8 + dungeon.depth * 2,
-        mapRef: { kind: "dungeon", dungeonId: dungeon.id },
+        mapRef: { kind: 'dungeon', dungeonId: dungeon.id },
         pos: p,
         value: 10 + dungeon.depth * 2
       };
     } else if (roll < 85) {
       item = {
         id: `it_${dungeon.id}_${i}`,
-        kind: "weapon",
-        name: dungeon.depth >= 4 ? "Iron Sword" : "Rusty Sword",
+        kind: 'weapon',
+        name: dungeon.depth >= 4 ? 'Iron Sword' : 'Rusty Sword',
         attackBonus: 2 + dungeon.depth,
-        mapRef: { kind: "dungeon", dungeonId: dungeon.id },
+        mapRef: { kind: 'dungeon', dungeonId: dungeon.id },
         pos: p,
         value: 18 + dungeon.depth * 3
       };
     } else {
       item = {
         id: `it_${dungeon.id}_${i}`,
-        kind: "armor",
-        name: dungeon.depth >= 4 ? "Chain Vest" : "Leather Armor",
+        kind: 'armor',
+        name: dungeon.depth >= 4 ? 'Chain Vest' : 'Leather Armor',
         defenseBonus: 1 + Math.floor(dungeon.depth / 2),
-        mapRef: { kind: "dungeon", dungeonId: dungeon.id },
+        mapRef: { kind: 'dungeon', dungeonId: dungeon.id },
         pos: p,
         value: 18 + dungeon.depth * 3
       };
@@ -290,9 +292,9 @@ function spawnLootInDungeon(s: GameState, dungeon: Dungeon, seed: number): void 
 }
 
 function getActiveTownId(): string | undefined {
-  if (state.mode !== "overworld") return undefined;
+  if (state.mode !== 'overworld') return undefined;
   const t = state.overworld.getTile(state.player.pos.x, state.player.pos.y);
-  if (t !== "town") return undefined;
+  if (t !== 'town') return undefined;
   return townIdFromWorldPos(state.worldSeed, state.player.pos.x, state.player.pos.y);
 }
 
@@ -303,7 +305,7 @@ function ensureQuestForTown(s: GameState, townPos: Point): void {
   if (s.quests.some((q) => q.townId === townId)) return;
 
   // Generate 1-2 quests deterministically from seed + town coords.
-  const seed: number = hash2D(s.worldSeed, townPos.x, townPos.y) ^ 0xA11CE;
+  const seed: number = hash2D(s.worldSeed, townPos.x, townPos.y) ^ 0xa11ce;
   const rng: Rng = new Rng(seed);
 
   const questCount: number = 1 + rng.nextInt(0, 2);
@@ -313,10 +315,10 @@ function ensureQuestForTown(s: GameState, townPos: Point): void {
     const rewardGold: number = 20 + minDepth * 10 + rng.nextInt(0, 10);
     const rewardXp: number = 18 + minDepth * 8 + rng.nextInt(0, 10);
 
-    const q: import("./core/types").Quest = {
+    const q: import('./core/types').Quest = {
       id: `q_${townId}_${i}`,
       townId,
-      kind: "killMonsters",
+      kind: 'killMonsters',
       description: `Clear threats: defeat ${targetCount} monsters (depth ≥ ${minDepth})`,
       targetCount,
       currentCount: 0,
@@ -333,7 +335,7 @@ function ensureQuestForTown(s: GameState, townPos: Point): void {
 
 function recordKillForQuests(s: GameState, dungeonDepth: number): void {
   for (const q of s.quests) {
-    if (q.kind !== "killMonsters") continue;
+    if (q.kind !== 'killMonsters') continue;
     if (q.completed || q.turnedIn) continue;
     if (dungeonDepth < q.minDungeonDepth) continue;
 
@@ -351,7 +353,7 @@ function applyStatusEffectsStartOfTurn(s: GameState): void {
   if (effects.length === 0) return;
 
   for (const eff of effects) {
-    if (eff.kind === "poison") {
+    if (eff.kind === 'poison') {
       s.player.hp -= eff.potency;
       s.log.push(`Poison deals ${eff.potency} damage. (${Math.max(0, s.player.hp)}/${s.player.maxHp})`);
     }
@@ -361,32 +363,32 @@ function applyStatusEffectsStartOfTurn(s: GameState): void {
   s.player.statusEffects = effects.filter((e) => e.remainingTurns > 0);
 
   if (s.player.hp <= 0) {
-    s.log.push("You succumb to your wounds.");
+    s.log.push('You succumb to your wounds.');
   }
 }
 
 function maybeApplyPoisonFromAttacker(attacker: Entity): void {
   // Slimes have a chance to poison.
-  if (attacker.name !== "Slime") return;
+  if (attacker.name !== 'Slime') return;
   const roll: number = state.rng.nextInt(0, 100);
   if (roll >= 20) return;
 
   const effects = state.player.statusEffects ?? [];
-  const existing = effects.find((e) => e.kind === "poison");
+  const existing = effects.find((e) => e.kind === 'poison');
   if (existing) {
     existing.remainingTurns = Math.max(existing.remainingTurns, 5);
     existing.potency = Math.max(existing.potency, 1);
   } else {
-    effects.push({ kind: "poison", remainingTurns: 5, potency: 1 });
+    effects.push({ kind: 'poison', remainingTurns: 5, potency: 1 });
   }
   state.player.statusEffects = effects;
-  state.log.push("You are poisoned!");
+  state.log.push('You are poisoned!');
 }
 
 function maybeRestockShop(s: GameState, shop: Shop): void {
   // Restock every 80 turns (simple timer) - deterministic but time-based.
   const restockInterval: number = 80;
-  const needsRestock: boolean = (s.turnCounter % restockInterval) === 0;
+  const needsRestock: boolean = s.turnCounter % restockInterval === 0;
 
   if (!needsRestock) return;
 
@@ -404,11 +406,11 @@ function maybeRestockShop(s: GameState, shop: Shop): void {
 
     let item: Item;
     if (roll < 45) {
-      item = { id: itemId, kind: "potion", name: "Healing Potion", healAmount: 10, value: 14 };
+      item = { id: itemId, kind: 'potion', name: 'Healing Potion', healAmount: 10, value: 14 };
     } else if (roll < 75) {
-      item = { id: itemId, kind: "weapon", name: "Steel Dagger", attackBonus: 3, value: 30 };
+      item = { id: itemId, kind: 'weapon', name: 'Steel Dagger', attackBonus: 3, value: 30 };
     } else {
-      item = { id: itemId, kind: "armor", name: "Padded Vest", defenseBonus: 2, value: 28 };
+      item = { id: itemId, kind: 'armor', name: 'Padded Vest', defenseBonus: 2, value: 28 };
     }
 
     s.items.push(item);
@@ -416,7 +418,7 @@ function maybeRestockShop(s: GameState, shop: Shop): void {
   }
 
   shop.stockItemIds = stock;
-  s.log.push("The shop has new stock.");
+  s.log.push('The shop has new stock.');
 }
 
 function ensureShopForTown(s: GameState, townPos: Point): Shop {
@@ -426,7 +428,7 @@ function ensureShopForTown(s: GameState, townPos: Point): Shop {
 
   const stock: string[] = [];
   const seed: number = hash2D(s.worldSeed, townPos.x, townPos.y);
-  const rng: Rng = new Rng(seed ^ 0xC0FFEE);
+  const rng: Rng = new Rng(seed ^ 0xc0ffee);
 
   // Generate 10 stock items that persist per town.
   for (let i: number = 0; i < 10; i++) {
@@ -436,11 +438,11 @@ function ensureShopForTown(s: GameState, townPos: Point): Shop {
     let item: Item;
 
     if (roll < 45) {
-      item = { id: itemId, kind: "potion", name: "Healing Potion", healAmount: 10, value: 14 };
+      item = { id: itemId, kind: 'potion', name: 'Healing Potion', healAmount: 10, value: 14 };
     } else if (roll < 75) {
-      item = { id: itemId, kind: "weapon", name: "Steel Dagger", attackBonus: 3, value: 30 };
+      item = { id: itemId, kind: 'weapon', name: 'Steel Dagger', attackBonus: 3, value: 30 };
     } else {
-      item = { id: itemId, kind: "armor", name: "Padded Vest", defenseBonus: 2, value: 28 };
+      item = { id: itemId, kind: 'armor', name: 'Padded Vest', defenseBonus: 2, value: 28 };
     }
 
     // Shop stock is not placed on the map.
@@ -454,41 +456,41 @@ function ensureShopForTown(s: GameState, townPos: Point): Shop {
 }
 
 function isStandingOnTown(): boolean {
-  return state.mode === "overworld" && state.overworld.getTile(state.player.pos.x, state.player.pos.y) === "town";
+  return state.mode === 'overworld' && state.overworld.getTile(state.player.pos.x, state.player.pos.y) === 'town';
 }
 
 function isStandingOnDungeonEntrance(): boolean {
-  return state.mode === "overworld" && state.overworld.getTile(state.player.pos.x, state.player.pos.y) === "dungeon";
+  return state.mode === 'overworld' && state.overworld.getTile(state.player.pos.x, state.player.pos.y) === 'dungeon';
 }
 
 function removeDeadEntities(s: GameState): void {
-  s.entities = s.entities.filter((e: Entity) => e.hp > 0 || e.kind === "player");
+  s.entities = s.entities.filter((e: Entity) => e.hp > 0 || e.kind === 'player');
 }
 
 function handleAction(action: Action): void {
-  if (action.kind === "toggleRenderer") {
-    state.rendererMode = state.rendererMode === "ascii" ? "canvas" : "ascii";
+  if (action.kind === 'toggleRenderer') {
+    state.rendererMode = state.rendererMode === 'ascii' ? 'canvas' : 'ascii';
     syncRendererUi();
     render();
     return;
   }
 
-  if (action.kind === "toggleFov") {
+  if (action.kind === 'toggleFov') {
     state.useFov = !state.useFov;
-    state.log.push(state.useFov ? "FOV enabled." : "FOV disabled.");
+    state.log.push(state.useFov ? 'FOV enabled.' : 'FOV disabled.');
     render();
     return;
   }
 
-  if (action.kind === "toggleInventory") {
-    state.activePanel = state.activePanel === "inventory" ? "none" : "inventory";
+  if (action.kind === 'toggleInventory') {
+    state.activePanel = state.activePanel === 'inventory' ? 'none' : 'inventory';
     render();
     return;
   }
 
-  if (action.kind === "toggleShop") {
-    state.activePanel = state.activePanel === "shop" ? "none" : "shop";
-    if (state.activePanel === "shop" && isStandingOnTown()) {
+  if (action.kind === 'toggleShop') {
+    state.activePanel = state.activePanel === 'shop' ? 'none' : 'shop';
+    if (state.activePanel === 'shop' && isStandingOnTown()) {
       ensureShopForTown(state, state.player.pos);
       ensureQuestForTown(state, state.player.pos);
       const shopNow: Shop = ensureShopForTown(state, state.player.pos);
@@ -498,32 +500,32 @@ function handleAction(action: Action): void {
     return;
   }
 
-if (action.kind === "toggleMap") {
-  if (state.mode !== "overworld") {
-    state.log.push("Map is only available on the overworld.");
+  if (action.kind === 'toggleMap') {
+    if (state.mode !== 'overworld') {
+      state.log.push('Map is only available on the overworld.');
+      render();
+      return;
+    }
+
+    state.mapOpen = !state.mapOpen;
+    state.activePanel = 'none';
+    state.mapCursor = { x: 0, y: 0 };
+    if (state.mapOpen) state.log.push('Map open: move cursor with WASD/Arrows, Enter to set destination, Esc/M to close, C to cancel auto-walk.');
     render();
     return;
   }
 
-  state.mapOpen = !state.mapOpen;
-  state.activePanel = "none";
-  state.mapCursor = { x: 0, y: 0 };
-  if (state.mapOpen) state.log.push("Map open: move cursor with WASD/Arrows, Enter to set destination, Esc/M to close, C to cancel auto-walk.");
-  render();
-  return;
-}
+  if (action.kind === 'cancelAuto') {
+    state.destination = undefined;
+    state.autoPath = undefined;
+    state.log.push('Auto-walk canceled.');
+    render();
+    return;
+  }
 
-if (action.kind === "cancelAuto") {
-  state.destination = undefined;
-  state.autoPath = undefined;
-  state.log.push("Auto-walk canceled.");
-  render();
-  return;
-}
-
-  if (action.kind === "toggleQuest") {
-    state.activePanel = state.activePanel === "quest" ? "none" : "quest";
-    if (state.activePanel === "quest" && isStandingOnTown()) {
+  if (action.kind === 'toggleQuest') {
+    state.activePanel = state.activePanel === 'quest' ? 'none' : 'quest';
+    if (state.activePanel === 'quest' && isStandingOnTown()) {
       ensureQuestForTown(state, state.player.pos);
       const shopNow: Shop = ensureShopForTown(state, state.player.pos);
       maybeRestockShop(state, shopNow);
@@ -532,21 +534,23 @@ if (action.kind === "cancelAuto") {
     return;
   }
 
-  if (action.kind === "save") {
+  if (action.kind === 'save') {
     doSave();
     render();
     return;
   }
 
-  if (action.kind === "load") {
+  if (action.kind === 'load') {
     doLoad();
     syncRendererUi();
     render();
     return;
   }
 
-  if (action.kind === "help") {
-    state.log.push("Keys: WASD/Arrows move • Shift+Move run (overworld) • M map • Enter use • I inventory • B shop (town) • Q quests (town) • G pick up • R renderer • F FOV • P save • O load.");
+  if (action.kind === 'help') {
+    state.log.push(
+      'Keys: WASD/Arrows move • Shift+Move run (overworld) • M map • Enter use • I inventory • B shop (town) • Q quests (town) • G pick up • R renderer • F FOV • P save • O load.'
+    );
     render();
     return;
   }
@@ -554,7 +558,10 @@ if (action.kind === "cancelAuto") {
   // Turn-based effects tick at the start of each action that advances time.
   state.turnCounter += 1;
   applyStatusEffectsStartOfTurn(state);
-  if (state.player.hp <= 0) { render(); return; }
+  if (state.player.hp <= 0) {
+    render();
+    return;
+  }
 
   const acted: boolean = playerTurn(action);
   if (!acted) {
@@ -566,7 +573,7 @@ if (action.kind === "cancelAuto") {
   removeDeadEntities(state);
 
   if (state.player.hp <= 0) {
-    state.log.push("You died. Press New Seed to restart.");
+    state.log.push('You died. Press New Seed to restart.');
   }
 
   render();
@@ -575,45 +582,45 @@ if (action.kind === "cancelAuto") {
 function playerTurn(action: Action): boolean {
   if (state.player.hp <= 0) return false;
 
-if (state.mode === "overworld" && state.autoPath && state.autoPath.length >= 2) {
-  // If the player presses a time-advancing key (move or space), advance one step along the path.
-  if (action.kind === "move" || action.kind === "wait") {
-    const next: Point = state.autoPath[1];
-    if (!canEnterOverworldTile(state.overworld, next)) {
-      state.log.push("Auto-walk blocked.");
-      state.destination = undefined;
-      state.autoPath = undefined;
-      return false;
+  if (state.mode === 'overworld' && state.autoPath && state.autoPath.length >= 2) {
+    // If the player presses a time-advancing key (move or space), advance one step along the path.
+    if (action.kind === 'move' || action.kind === 'wait') {
+      const next: Point = state.autoPath[1];
+      if (!canEnterOverworldTile(state.overworld, next)) {
+        state.log.push('Auto-walk blocked.');
+        state.destination = undefined;
+        state.autoPath = undefined;
+        return false;
+      }
+
+      state.player.pos = { x: next.x, y: next.y };
+      state.autoPath = state.autoPath.slice(1);
+
+      if (state.destination && state.player.pos.x === state.destination.x && state.player.pos.y === state.destination.y) {
+        state.log.push('Arrived at destination.');
+        state.destination = undefined;
+        state.autoPath = undefined;
+      }
+
+      const t = state.overworld.getTile(state.player.pos.x, state.player.pos.y);
+      if (t === 'dungeon') state.log.push('Dungeon entrance found. Press Enter to enter.');
+      if (t === 'town') state.log.push('Town found. Press Enter then B/Q.');
+
+      return true;
     }
-
-    state.player.pos = { x: next.x, y: next.y };
-    state.autoPath = state.autoPath.slice(1);
-
-    if (state.destination && state.player.pos.x === state.destination.x && state.player.pos.y === state.destination.y) {
-      state.log.push("Arrived at destination.");
-      state.destination = undefined;
-      state.autoPath = undefined;
-    }
-
-    const t = state.overworld.getTile(state.player.pos.x, state.player.pos.y);
-    if (t === "dungeon") state.log.push("Dungeon entrance found. Press Enter to enter.");
-    if (t === "town") state.log.push("Town found. Press Enter then B/Q.");
-
-    return true;
-  }
-}
-
-  if (action.kind === "wait") {
-    state.log.push("You wait.");
-    return true;
   }
 
-  if (action.kind === "pickup") {
+  if (action.kind === 'wait') {
+    state.log.push('You wait.');
+    return true;
+  }
+
+  if (action.kind === 'pickup') {
     return pickupAtPlayer();
   }
 
-  if (action.kind === "use") {
-    if (state.mode === "overworld") {
+  if (action.kind === 'use') {
+    if (state.mode === 'overworld') {
       if (isStandingOnDungeonEntrance()) {
         enterDungeonAt(state.player.pos);
         return true;
@@ -622,28 +629,28 @@ if (state.mode === "overworld" && state.autoPath && state.autoPath.length >= 2) 
         state.log.push("You're in town. Press B to open the shop.");
         return true;
       }
-      state.log.push("Nothing to use here.");
+      state.log.push('Nothing to use here.');
       return false;
     } else {
       const dungeon: Dungeon | undefined = getCurrentDungeon(state);
       if (!dungeon) return false;
 
       const tile = getDungeonTile(dungeon, state.player.pos.x, state.player.pos.y);
-      if (tile === "stairsUp") {
+      if (tile === 'stairsUp') {
         goUpLevelOrExit();
         return true;
       }
-      if (tile === "stairsDown") {
+      if (tile === 'stairsDown') {
         goDownLevel();
         return true;
       }
 
-      state.log.push("Nothing to use here.");
+      state.log.push('Nothing to use here.');
       return false;
     }
   }
 
-  if (action.kind === "move") {
+  if (action.kind === 'move') {
     return tryMovePlayer(action.dx, action.dy);
   }
 
@@ -652,14 +659,14 @@ if (state.mode === "overworld" && state.autoPath && state.autoPath.length >= 2) 
 
 function pickupAtPlayer(): boolean {
   const dungeon: Dungeon | undefined = getCurrentDungeon(state);
-  if (state.mode !== "dungeon" || !dungeon) {
-    state.log.push("You can only pick up items inside dungeons (for now).");
+  if (state.mode !== 'dungeon' || !dungeon) {
+    state.log.push('You can only pick up items inside dungeons (for now).');
     return false;
   }
 
   for (const it of state.items) {
     if (!it.mapRef || !it.pos) continue;
-    if (it.mapRef.kind !== "dungeon") continue;
+    if (it.mapRef.kind !== 'dungeon') continue;
     if (it.mapRef.dungeonId !== dungeon.id) continue;
 
     if (it.pos.x === state.player.pos.x && it.pos.y === state.player.pos.y) {
@@ -671,19 +678,19 @@ function pickupAtPlayer(): boolean {
     }
   }
 
-  state.log.push("Nothing to pick up.");
+  state.log.push('Nothing to pick up.');
   return false;
 }
 
 function tryMovePlayer(dx: number, dy: number): boolean {
   const target: Point = add(state.player.pos, { x: dx, y: dy });
 
-  if (state.mode === "dungeon") {
+  if (state.mode === 'dungeon') {
     const dungeon: Dungeon | undefined = getCurrentDungeon(state);
     if (!dungeon) return false;
 
-    const blocker: Entity | undefined = isBlockedByEntity(state.entities, "dungeon", dungeon.id, target);
-    if (blocker && blocker.kind === "monster") {
+    const blocker: Entity | undefined = isBlockedByEntity(state.entities, 'dungeon', dungeon.id, target);
+    if (blocker && blocker.kind === 'monster') {
       attack(state.player, blocker);
       return true;
     }
@@ -694,10 +701,10 @@ function tryMovePlayer(dx: number, dy: number): boolean {
     return true;
   }
 
-// Overworld movement supports "run" (dx/dy can be +/-5 via shift). Move step-by-step so collisions work.
+  // Overworld movement supports "run" (dx/dy can be +/-5 via shift). Move step-by-step so collisions work.
   const steps: number = Math.max(Math.abs(dx), Math.abs(dy));
-  const stepX: number = dx === 0 ? 0 : (dx > 0 ? 1 : -1);
-  const stepY: number = dy === 0 ? 0 : (dy > 0 ? 1 : -1);
+  const stepX: number = dx === 0 ? 0 : dx > 0 ? 1 : -1;
+  const stepY: number = dy === 0 ? 0 : dy > 0 ? 1 : -1;
 
   let moved: boolean = false;
 
@@ -712,8 +719,8 @@ function tryMovePlayer(dx: number, dy: number): boolean {
     state.autoPath = undefined;
 
     const t = state.overworld.getTile(next.x, next.y);
-    if (t === "dungeon") state.log.push("Dungeon entrance found. Press Enter to enter.");
-    if (t === "town") state.log.push("Town found. Press Enter then B/Q.");
+    if (t === 'dungeon') state.log.push('Dungeon entrance found. Press Enter to enter.');
+    if (t === 'town') state.log.push('Town found. Press Enter then B/Q.');
   }
 
   return moved;
@@ -763,7 +770,7 @@ function attack(attacker: Entity, defender: Entity): void {
 
   if (defender.hp <= 0) {
     state.log.push(`${defender.name} dies.`);
-    if (attacker.kind === "player") {
+    if (attacker.kind === 'player') {
       const xp: number = 6 + (defender.baseAttack + defender.baseDefense);
       const gold: number = 2 + state.rng.nextInt(0, 4);
       state.player.gold += gold;
@@ -777,7 +784,7 @@ function attack(attacker: Entity, defender: Entity): void {
 }
 
 function monstersTurn(): void {
-  if (state.mode !== "dungeon") return;
+  if (state.mode !== 'dungeon') return;
 
   const dungeon: Dungeon | undefined = getCurrentDungeon(state);
   if (!dungeon) return;
@@ -790,9 +797,9 @@ function monstersTurn(): void {
   }
 
   for (const e of state.entities) {
-    if (e.kind !== "monster") continue;
+    if (e.kind !== 'monster') continue;
     if (e.hp <= 0) continue;
-    if (e.mapRef.kind !== "dungeon") continue;
+    if (e.mapRef.kind !== 'dungeon') continue;
     if (e.mapRef.dungeonId !== dungeon.id) continue;
 
     const dist: number = manhattan(e.pos, state.player.pos);
@@ -810,7 +817,7 @@ function monstersTurn(): void {
       const next: Point | undefined = nextMonsterStep(e, state.player, dungeon, state.entities);
       if (!next) continue;
 
-      const blocked: Entity | undefined = isBlockedByEntity(state.entities, "dungeon", dungeon.id, next);
+      const blocked: Entity | undefined = isBlockedByEntity(state.entities, 'dungeon', dungeon.id, next);
       if (blocked) continue;
 
       if (canEnterDungeonTile(dungeon, next)) e.pos = next;
@@ -825,11 +832,11 @@ function enterDungeonAt(worldPos: Point): void {
   const dungeon: Dungeon = ensureDungeonLevel(state, baseId, depth, worldPos);
 
   state.dungeonStack = [{ baseId, depth, entranceWorldPos: { x: worldPos.x, y: worldPos.y } }];
-  state.mode = "dungeon";
-  state.player.mapRef = { kind: "dungeon", dungeonId: dungeon.id };
+  state.mode = 'dungeon';
+  state.player.mapRef = { kind: 'dungeon', dungeonId: dungeon.id };
   state.player.pos = { x: dungeon.stairsUp.x, y: dungeon.stairsUp.y };
 
-  state.log.push("You enter the dungeon.");
+  state.log.push('You enter the dungeon.');
 }
 
 function goDownLevel(): void {
@@ -840,7 +847,7 @@ function goDownLevel(): void {
   const dungeon: Dungeon = ensureDungeonLevel(state, current.baseId, nextDepth, current.entranceWorldPos);
 
   state.dungeonStack.push({ baseId: current.baseId, depth: nextDepth, entranceWorldPos: current.entranceWorldPos });
-  state.player.mapRef = { kind: "dungeon", dungeonId: dungeon.id };
+  state.player.mapRef = { kind: 'dungeon', dungeonId: dungeon.id };
   state.player.pos = { x: dungeon.stairsUp.x, y: dungeon.stairsUp.y };
   state.log.push(`You descend to depth ${nextDepth}. Theme: ${dungeon.theme}.`);
 }
@@ -850,11 +857,11 @@ function goUpLevelOrExit(): void {
     const top: DungeonStackFrame | undefined = state.dungeonStack[0];
     if (!top) return;
 
-    state.mode = "overworld";
-    state.player.mapRef = { kind: "overworld" };
+    state.mode = 'overworld';
+    state.player.mapRef = { kind: 'overworld' };
     state.player.pos = { x: top.entranceWorldPos.x, y: top.entranceWorldPos.y };
     state.dungeonStack = [];
-    state.log.push("You return to the overworld.");
+    state.log.push('You return to the overworld.');
     return;
   }
 
@@ -864,13 +871,13 @@ function goUpLevelOrExit(): void {
   const dungeon: Dungeon | undefined = state.dungeons.get(dungeonId);
   if (!dungeon) return;
 
-  state.player.mapRef = { kind: "dungeon", dungeonId };
+  state.player.mapRef = { kind: 'dungeon', dungeonId };
   state.player.pos = { x: dungeon.stairsDown.x, y: dungeon.stairsDown.y };
   state.log.push(`You ascend to depth ${prev.depth}.`);
 }
 
 function setDestination(dest: Point): void {
-  if (state.mode !== "overworld") return;
+  if (state.mode !== 'overworld') return;
 
   const path = aStar(
     state.player.pos,
@@ -881,7 +888,7 @@ function setDestination(dest: Point): void {
   );
 
   if (!path || path.length < 2) {
-    state.log.push("No path found to destination.");
+    state.log.push('No path found to destination.');
     state.destination = undefined;
     state.autoPath = undefined;
     return;
@@ -893,23 +900,22 @@ function setDestination(dest: Point): void {
 }
 
 function syncRendererUi(): void {
-
-  const isAscii: boolean = state.rendererMode === "ascii";
-  asciiEl.style.display = isAscii ? "block" : "none";
-  canvasWrap.style.display = isAscii ? "none" : "block";
+  const isAscii: boolean = state.rendererMode === 'ascii';
+  asciiEl.style.display = isAscii ? 'block' : 'none';
+  canvasWrap.style.display = isAscii ? 'none' : 'block';
 }
 
 function render(): void {
   const dungeon: Dungeon | undefined = getCurrentDungeon(state);
 
   modePill.textContent =
-    state.mode === "overworld"
-      ? "Mode: overworld"
-      : `Mode: dungeon (depth ${state.dungeonStack[state.dungeonStack.length - 1]?.depth ?? 0} • ${dungeon?.theme ?? "?"})`;
+    state.mode === 'overworld'
+      ? 'Mode: overworld'
+      : `Mode: dungeon (depth ${state.dungeonStack[state.dungeonStack.length - 1]?.depth ?? 0} • ${dungeon?.theme ?? '?'})`;
 
-  renderPill.textContent = `Renderer: ${state.rendererMode} • FOV: ${state.useFov ? "on" : "off"}`;
+  renderPill.textContent = `Renderer: ${state.rendererMode} • FOV: ${state.useFov ? 'on' : 'off'}`;
 
-  if (state.mode === "dungeon" && dungeon && state.useFov) {
+  if (state.mode === 'dungeon' && dungeon && state.useFov) {
     decayVisibilityToSeen(dungeon);
     computeDungeonFov(dungeon, state.player.pos, 10);
   }
@@ -922,7 +928,7 @@ function render(): void {
     <div class="kv small"><div>Atk ${atk}</div><div>Def ${def}</div></div>
     <div class="kv small"><div>XP ${state.player.xp}/${xpToNextLevel(state.player.level)}</div><div>Gold ${state.player.gold}</div></div>
     <div class="kv small"><div>Pos ${state.player.pos.x}, ${state.player.pos.y}</div><div class="muted">Turn ${state.turnCounter}</div></div>
-    <div class="kv small"><div class="muted">Status ${(state.player.statusEffects ?? []).map((e) => e.kind + ":" + e.remainingTurns).join(", ") || "none"}</div><div class="muted">Seed ${state.worldSeed}</div></div>
+    <div class="kv small"><div class="muted">Status ${(state.player.statusEffects ?? []).map((e) => e.kind + ':' + e.remainingTurns).join(', ') || 'none'}</div><div class="muted">Seed ${state.worldSeed}</div></div>
   `;
 
   const activeShop: Shop | undefined = isStandingOnTown() ? ensureShopForTown(state, state.player.pos) : undefined;
@@ -942,106 +948,122 @@ function render(): void {
     shopCategory: state.shopCategory
   });
 
-  logEl.innerHTML = state.log.all().slice(0, 160).map((m) => `<div>• ${escapeHtml(m.text)}</div>`).join("");
+  logEl.innerHTML = state.log
+    .all()
+    .slice(0, 160)
+    .map((m) => `<div>• ${escapeHtml(m.text)}</div>`)
+    .join('');
 
-if (state.mapOpen) {
+  if (state.mapOpen) {
     // Map overlay: render a larger overworld view in ASCII, with destination/path markers.
-    asciiEl.style.display = "block";
-    canvasWrap.style.display = "none";
+    asciiEl.style.display = 'block';
+    canvasWrap.style.display = 'none';
 
     const dest: Point | undefined = state.destination ?? { x: state.player.pos.x + state.mapCursor.x, y: state.player.pos.y + state.mapCursor.y };
-    asciiEl.textContent = renderOverworldMapAscii({
-      overworld: state.overworld,
-      player: state.player,
-      destination: dest,
-      autoPath: state.autoPath,
-      items: state.items
-    }, 89, 41);
+    asciiEl.textContent = renderOverworldMapAscii(
+      {
+        overworld: state.overworld,
+        player: state.player,
+        destination: dest,
+        autoPath: state.autoPath,
+        items: state.items
+      },
+      89,
+      41
+    );
 
     return;
   }
 
-  if (state.rendererMode === "ascii") {
-    asciiEl.style.display = "block";
-    canvasWrap.style.display = "none";
-    asciiEl.textContent = renderAscii({
-      mode: state.mode,
-      overworld: state.overworld,
-      dungeon,
-      player: state.player,
-      entities: state.entities,
-      items: state.items,
-      useFov: state.useFov
-    }, VIEW_W, VIEW_H);
+  if (state.rendererMode === 'ascii') {
+    asciiEl.style.display = 'block';
+    canvasWrap.style.display = 'none';
+    asciiEl.textContent = renderAscii(
+      {
+        mode: state.mode,
+        overworld: state.overworld,
+        dungeon,
+        player: state.player,
+        entities: state.entities,
+        items: state.items,
+        useFov: state.useFov
+      },
+      VIEW_W,
+      VIEW_H
+    );
   } else {
-    asciiEl.style.display = "none";
-    canvasWrap.style.display = "block";
-    canvasRenderer.render({
-      mode: state.mode,
-      overworld: state.overworld,
-      dungeon,
-      player: state.player,
-      entities: state.entities,
-      items: state.items,
-      useFov: state.useFov
-    }, Math.floor(canvas.width / 16) - 1, Math.floor(canvas.height / 16) - 1);
+    asciiEl.style.display = 'none';
+    canvasWrap.style.display = 'block';
+    canvasRenderer.render(
+      {
+        mode: state.mode,
+        overworld: state.overworld,
+        dungeon,
+        player: state.player,
+        entities: state.entities,
+        items: state.items,
+        useFov: state.useFov
+      },
+      PIXI_VIEW_W,
+      PIXI_VIEW_H
+    );
   }
 }
 
 // Panel actions (inventory/shop buttons)
-panelEl.addEventListener("click", (e: MouseEvent) => {
+panelEl.addEventListener('click', (e: MouseEvent) => {
   const target: HTMLElement | null = e.target as HTMLElement;
   if (!target) return;
-  const act: string | null = target.getAttribute("data-act");
-  const itemId: string | null = target.getAttribute("data-item");
-  const questId: string | null = target.getAttribute("data-quest");
+  const act: string | null = target.getAttribute('data-act');
+  const itemId: string | null = target.getAttribute('data-item');
+  const questId: string | null = target.getAttribute('data-quest');
   if (!act) return;
 
-  if (act === "use") {
+  if (act === 'use') {
     if (!itemId) return;
     usePotion(itemId);
     render();
     return;
   }
-  if (act === "equipWeapon") {
+  if (act === 'equipWeapon') {
     if (!itemId) return;
     equipWeapon(itemId);
     render();
     return;
   }
-  if (act === "equipArmor") {
+  if (act === 'equipArmor') {
     if (!itemId) return;
     equipArmor(itemId);
     render();
     return;
   }
-  if (act === "drop") {
+  if (act === 'drop') {
     if (!itemId) return;
     dropItem(itemId);
     render();
     return;
   }
-  if (act === "buy") {
+  if (act === 'buy') {
     if (!itemId) return;
     buyItem(itemId);
     render();
     return;
   }
-  if (act === "sell") {
+  if (act === 'sell') {
     if (!itemId) return;
     sellItem(itemId);
     render();
     return;
   }
-  if (act === "shopCat") {
-    const cat: string | null = target.getAttribute("data-cat");
-    if (cat === "all" || cat === "potion" || cat === "weapon" || cat === "armor") {
+  if (act === 'shopCat') {
+    const cat: string | null = target.getAttribute('data-cat');
+    if (cat === 'all' || cat === 'potion' || cat === 'weapon' || cat === 'armor') {
       state.shopCategory = cat;
     }
     render();
     return;
   }
-  if (act === "turnIn") {
+  if (act === 'turnIn') {
     if (questId) {
       turnInQuest(questId);
     }
@@ -1052,7 +1074,7 @@ panelEl.addEventListener("click", (e: MouseEvent) => {
 
 function usePotion(itemId: string): void {
   const it: Item | undefined = state.items.find((x) => x.id === itemId);
-  if (!it || it.kind !== "potion") return;
+  if (!it || it.kind !== 'potion') return;
   if (!state.player.inventory.includes(itemId)) return;
 
   const heal: number = it.healAmount ?? 8;
@@ -1067,7 +1089,7 @@ function usePotion(itemId: string): void {
 
 function equipWeapon(itemId: string): void {
   const it: Item | undefined = state.items.find((x) => x.id === itemId);
-  if (!it || it.kind !== "weapon") return;
+  if (!it || it.kind !== 'weapon') return;
   if (!state.player.inventory.includes(itemId)) return;
   state.player.equipment.weaponItemId = itemId;
   state.log.push(`Equipped weapon: ${it.name}.`);
@@ -1075,7 +1097,7 @@ function equipWeapon(itemId: string): void {
 
 function equipArmor(itemId: string): void {
   const it: Item | undefined = state.items.find((x) => x.id === itemId);
-  if (!it || it.kind !== "armor") return;
+  if (!it || it.kind !== 'armor') return;
   if (!state.player.inventory.includes(itemId)) return;
   state.player.equipment.armorItemId = itemId;
   state.log.push(`Equipped armor: ${it.name}.`);
@@ -1087,10 +1109,10 @@ function dropItem(itemId: string): void {
   if (!state.player.inventory.includes(itemId)) return;
 
   // Drop only if in dungeon; else just discard (simple for now)
-  if (state.mode === "dungeon") {
+  if (state.mode === 'dungeon') {
     const dungeon: Dungeon | undefined = getCurrentDungeon(state);
     if (dungeon) {
-      it.mapRef = { kind: "dungeon", dungeonId: dungeon.id };
+      it.mapRef = { kind: 'dungeon', dungeonId: dungeon.id };
       it.pos = { x: state.player.pos.x, y: state.player.pos.y };
       state.log.push(`Dropped: ${it.name}.`);
     }
@@ -1106,7 +1128,7 @@ function dropItem(itemId: string): void {
 
 function buyItem(itemId: string): void {
   if (!isStandingOnTown()) {
-    state.log.push("You need to be in town to buy.");
+    state.log.push('You need to be in town to buy.');
     return;
   }
   const it: Item | undefined = state.items.find((x) => x.id === itemId);
@@ -1114,7 +1136,7 @@ function buyItem(itemId: string): void {
 
   const price: number = it.value;
   if (state.player.gold < price) {
-    state.log.push("Not enough gold.");
+    state.log.push('Not enough gold.');
     return;
   }
 
@@ -1125,7 +1147,7 @@ function buyItem(itemId: string): void {
 
 function sellItem(itemId: string): void {
   if (!isStandingOnTown()) {
-    state.log.push("You need to be in town to sell.");
+    state.log.push('You need to be in town to sell.');
     return;
   }
   const it: Item | undefined = state.items.find((x) => x.id === itemId);
@@ -1148,19 +1170,19 @@ function sellItem(itemId: string): void {
 function turnInQuest(questId: string): void {
   const townId: string | undefined = getActiveTownId();
   if (!townId) {
-    state.log.push("You need to be in town to turn in quests.");
+    state.log.push('You need to be in town to turn in quests.');
     return;
   }
 
   const q = state.quests.find((x) => x.id === questId);
   if (!q) return;
   if (q.townId !== townId) {
-    state.log.push("That quest belongs to another town.");
+    state.log.push('That quest belongs to another town.');
     return;
   }
   if (q.turnedIn) return;
   if (!q.completed) {
-    state.log.push("Quest is not complete yet.");
+    state.log.push('Quest is not complete yet.');
     return;
   }
 
@@ -1171,39 +1193,39 @@ function turnInQuest(questId: string): void {
 }
 
 function escapeHtml(s: string): string {
-  return s.replaceAll("&", "&amp;").replaceAll("<", "&lt;").replaceAll(">", "&gt;");
+  return s.replaceAll('&', '&amp;').replaceAll('<', '&lt;').replaceAll('>', '&gt;');
 }
 
 function keyToAction(e: KeyboardEvent): Action | undefined {
-  if (e.key === "r" || e.key === "R") return { kind: "toggleRenderer" };
-  if (e.key === "f" || e.key === "F") return { kind: "toggleFov" };
-  if (e.key === "?" ) return { kind: "help" };
+  if (e.key === 'r' || e.key === 'R') return { kind: 'toggleRenderer' };
+  if (e.key === 'f' || e.key === 'F') return { kind: 'toggleFov' };
+  if (e.key === '?') return { kind: 'help' };
 
-  if (e.key === "p" || e.key === "P") return { kind: "save" };
-  if (e.key === "o" || e.key === "O") return { kind: "load" };
+  if (e.key === 'p' || e.key === 'P') return { kind: 'save' };
+  if (e.key === 'o' || e.key === 'O') return { kind: 'load' };
 
-  if (e.key === "i" || e.key === "I") return { kind: "toggleInventory" };
-  if (e.key === "b" || e.key === "B") return { kind: "toggleShop" };
-  if (e.key === "q" || e.key === "Q") return { kind: "toggleQuest" };
-  if (e.key === "m" || e.key === "M") return { kind: "toggleMap" };
+  if (e.key === 'i' || e.key === 'I') return { kind: 'toggleInventory' };
+  if (e.key === 'b' || e.key === 'B') return { kind: 'toggleShop' };
+  if (e.key === 'q' || e.key === 'Q') return { kind: 'toggleQuest' };
+  if (e.key === 'm' || e.key === 'M') return { kind: 'toggleMap' };
 
-  if (e.key === "g" || e.key === "G" || e.key === ",") return { kind: "pickup" };
+  if (e.key === 'g' || e.key === 'G' || e.key === ',') return { kind: 'pickup' };
 
-  if (e.key === "Enter") return { kind: "use" };
-  if (e.key === "c" || e.key === "C") return { kind: "cancelAuto" };
-  if (e.key === " ") return { kind: "wait" };
+  if (e.key === 'Enter') return { kind: 'use' };
+  if (e.key === 'c' || e.key === 'C') return { kind: 'cancelAuto' };
+  if (e.key === ' ') return { kind: 'wait' };
 
-  if (e.key === "ArrowUp" || e.key === "w" || e.key === "W") return { kind: "move", dx: 0, dy: -1 * (e.shiftKey ? 5 : 1) };
-  if (e.key === "ArrowDown" || e.key === "s" || e.key === "S") return { kind: "move", dx: 0, dy: 1 * (e.shiftKey ? 5 : 1) };
-  if (e.key === "ArrowLeft" || e.key === "a" || e.key === "A") return { kind: "move", dx: -1 * (e.shiftKey ? 5 : 1), dy: 0 };
-  if (e.key === "ArrowRight" || e.key === "d" || e.key === "D") return { kind: "move", dx: 1 * (e.shiftKey ? 5 : 1), dy: 0 };
+  if (e.key === 'ArrowUp' || e.key === 'w' || e.key === 'W') return { kind: 'move', dx: 0, dy: -1 * (e.shiftKey ? 5 : 1) };
+  if (e.key === 'ArrowDown' || e.key === 's' || e.key === 'S') return { kind: 'move', dx: 0, dy: 1 * (e.shiftKey ? 5 : 1) };
+  if (e.key === 'ArrowLeft' || e.key === 'a' || e.key === 'A') return { kind: 'move', dx: -1 * (e.shiftKey ? 5 : 1), dy: 0 };
+  if (e.key === 'ArrowRight' || e.key === 'd' || e.key === 'D') return { kind: 'move', dx: 1 * (e.shiftKey ? 5 : 1), dy: 0 };
 
   return undefined;
 }
 
 function handleMapKey(e: KeyboardEvent): void {
   // Cursor is relative to player.
-  if (e.key === "Escape" || e.key === "m" || e.key === "M") {
+  if (e.key === 'Escape' || e.key === 'm' || e.key === 'M') {
     state.mapOpen = false;
     render();
     return;
@@ -1211,18 +1233,18 @@ function handleMapKey(e: KeyboardEvent): void {
 
   const step: number = e.shiftKey ? 5 : 1;
 
-  if (e.key === "ArrowUp" || e.key === "w" || e.key === "W") state.mapCursor.y -= step;
-  if (e.key === "ArrowDown" || e.key === "s" || e.key === "S") state.mapCursor.y += step;
-  if (e.key === "ArrowLeft" || e.key === "a" || e.key === "A") state.mapCursor.x -= step;
-  if (e.key === "ArrowRight" || e.key === "d" || e.key === "D") state.mapCursor.x += step;
+  if (e.key === 'ArrowUp' || e.key === 'w' || e.key === 'W') state.mapCursor.y -= step;
+  if (e.key === 'ArrowDown' || e.key === 's' || e.key === 'S') state.mapCursor.y += step;
+  if (e.key === 'ArrowLeft' || e.key === 'a' || e.key === 'A') state.mapCursor.x -= step;
+  if (e.key === 'ArrowRight' || e.key === 'd' || e.key === 'D') state.mapCursor.x += step;
 
-  if (e.key === "c" || e.key === "C") {
+  if (e.key === 'c' || e.key === 'C') {
     state.destination = undefined;
     state.autoPath = undefined;
-    state.log.push("Auto-walk canceled.");
+    state.log.push('Auto-walk canceled.');
   }
 
-  if (e.key === "Enter") {
+  if (e.key === 'Enter') {
     const dest = { x: state.player.pos.x + state.mapCursor.x, y: state.player.pos.y + state.mapCursor.y };
     setDestination(dest);
     state.mapOpen = false;
@@ -1231,7 +1253,7 @@ function handleMapKey(e: KeyboardEvent): void {
   render();
 }
 
-window.addEventListener("keydown", (e: KeyboardEvent) => {
+window.addEventListener('keydown', (e: KeyboardEvent) => {
   if (state.mapOpen) {
     e.preventDefault();
     handleMapKey(e);
@@ -1244,32 +1266,46 @@ window.addEventListener("keydown", (e: KeyboardEvent) => {
   handleAction(a);
 });
 
-btnAscii.addEventListener("click", () => {
-  state.rendererMode = "ascii";
+btnAscii.addEventListener('click', () => {
+  state.rendererMode = 'ascii';
   syncRendererUi();
   render();
 });
 
-btnCanvas.addEventListener("click", () => {
-  state.rendererMode = "canvas";
+btnCanvas.addEventListener('click', () => {
+  state.rendererMode = 'canvas';
   syncRendererUi();
   render();
 });
 
-btnNewSeed.addEventListener("click", () => {
+btnNewSeed.addEventListener('click', () => {
   state = newGame(Date.now() & 0xffffffff);
   syncRendererUi();
   render();
 });
 
-btnSave.addEventListener("click", () => { doSave(); render(); });
-btnLoad.addEventListener("click", () => { doLoad(); syncRendererUi(); render(); });
+btnSave.addEventListener('click', () => {
+  doSave();
+  render();
+});
+btnLoad.addEventListener('click', () => {
+  doLoad();
+  syncRendererUi();
+  render();
+});
 
-btnInv.addEventListener("click", () => { state.activePanel = state.activePanel === "inventory" ? "none" : "inventory"; render(); });
-btnShop.addEventListener("click", () => { state.activePanel = state.activePanel === "shop" ? "none" : "shop"; if (state.activePanel === "shop" && isStandingOnTown()) ensureShopForTown(state, state.player.pos); render(); });
+btnInv.addEventListener('click', () => {
+  state.activePanel = state.activePanel === 'inventory' ? 'none' : 'inventory';
+  render();
+});
+btnShop.addEventListener('click', () => {
+  state.activePanel = state.activePanel === 'shop' ? 'none' : 'shop';
+  if (state.activePanel === 'shop' && isStandingOnTown()) ensureShopForTown(state, state.player.pos);
+  render();
+});
 
-btnMap.addEventListener("click", () => {
-  handleAction({ kind: "toggleMap" });
+btnMap.addEventListener('click', () => {
+  handleAction({ kind: 'toggleMap' });
 });
 
 function doSave(): void {
@@ -1292,13 +1328,13 @@ function doSave(): void {
   };
 
   saveToLocalStorage(data);
-  state.log.push("Saved.");
+  state.log.push('Saved.');
 }
 
 function doLoad(): void {
   const data: SaveDataV3 | undefined = loadFromLocalStorage();
   if (!data) {
-    state.log.push("No save found.");
+    state.log.push('No save found.');
     return;
   }
 
@@ -1314,7 +1350,7 @@ function doLoad(): void {
   const player: Entity | undefined = data.entities.find((e) => e.id === data.playerId);
   if (player && !player.statusEffects) player.statusEffects = [];
   if (!player) {
-    state.log.push("Save missing player.");
+    state.log.push('Save missing player.');
     return;
   }
 
@@ -1331,18 +1367,18 @@ function doLoad(): void {
     shops: shopsMap,
     rendererMode: state.rendererMode,
     useFov: state.useFov,
-    activePanel: (data.activePanel as PanelMode) ?? "none",
-    shopCategory: "all",
+    activePanel: (data.activePanel as PanelMode) ?? 'none',
+    shopCategory: 'all',
     turnCounter: data.turnCounter ?? 0,
     quests: data.quests ?? [],
     log: new MessageLog(160)
   };
 
-  state.log.push("Loaded.");
+  state.log.push('Loaded.');
 }
 
-function rebuildDungeonStackFromPlayer(data: SaveDataV2, player: Entity): DungeonStackFrame[] {
-  if (player.mapRef.kind !== "dungeon") return [];
+function rebuildDungeonStackFromPlayer(data: SaveDataV3, player: Entity): DungeonStackFrame[] {
+  if (player.mapRef.kind !== 'dungeon') return [];
   const dungeon: Dungeon | undefined = data.dungeons.find((d) => d.id === player.mapRef.dungeonId);
   if (!dungeon) return [];
 

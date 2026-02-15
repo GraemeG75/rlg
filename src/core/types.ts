@@ -1,12 +1,10 @@
 export type Point = { x: number; y: number };
 
-export type Mode = "overworld" | "dungeon";
+export type Mode = 'overworld' | 'dungeon';
 
-export type MapRef =
-  | { kind: "overworld" }
-  | { kind: "dungeon"; dungeonId: string };
+export type MapRef = { kind: 'overworld'; dungeonId: string } | { kind: 'dungeon'; dungeonId: string };
 
-export type EntityKind = "player" | "monster";
+export type EntityKind = 'player' | 'monster';
 
 export type Equipment = {
   weaponItemId?: string;
@@ -38,7 +36,7 @@ export type Entity = {
   statusEffects?: StatusEffect[];
 };
 
-export type ItemKind = "potion" | "weapon" | "armor";
+export type ItemKind = 'potion' | 'weapon' | 'armor';
 
 export type Item = {
   id: string;
@@ -65,27 +63,27 @@ export type Shop = {
 };
 
 export type Action =
-  | { kind: "move"; dx: number; dy: number }
-  | { kind: "use" }
-  | { kind: "wait" }
-  | { kind: "pickup" }
-  | { kind: "toggleInventory" }
-  | { kind: "toggleShop" }
-  | { kind: "toggleQuest" }
-  | { kind: "toggleMap" }
-  | { kind: "cancelAuto" }
-  | { kind: "toggleRenderer" }
-  | { kind: "toggleFov" }
-  | { kind: "help" }
-  | { kind: "save" }
-  | { kind: "load" };
+  | { kind: 'move'; dx: number; dy: number }
+  | { kind: 'use' }
+  | { kind: 'wait' }
+  | { kind: 'pickup' }
+  | { kind: 'toggleInventory' }
+  | { kind: 'toggleShop' }
+  | { kind: 'toggleQuest' }
+  | { kind: 'toggleMap' }
+  | { kind: 'cancelAuto' }
+  | { kind: 'toggleRenderer' }
+  | { kind: 'toggleFov' }
+  | { kind: 'help' }
+  | { kind: 'save' }
+  | { kind: 'load' };
 
-export type OverworldTile = "water" | "grass" | "forest" | "mountain" | "dungeon" | "town" | "road";
-export type DungeonTile = "wall" | "floor" | "stairsUp" | "stairsDown";
+export type OverworldTile = 'water' | 'grass' | 'forest' | 'mountain' | 'dungeon' | 'town' | 'road';
+export type DungeonTile = 'wall' | 'floor' | 'stairsUp' | 'stairsDown';
 
-export type TileVisibility = "unseen" | "seen" | "visible";
+export type TileVisibility = 'unseen' | 'seen' | 'visible';
 
-export type StatusEffectKind = "poison";
+export type StatusEffectKind = 'poison';
 
 export type StatusEffect = {
   kind: StatusEffectKind;
@@ -93,7 +91,7 @@ export type StatusEffect = {
   potency: number;
 };
 
-export type QuestKind = "killMonsters";
+export type QuestKind = 'killMonsters';
 
 export type Quest = {
   id: string;

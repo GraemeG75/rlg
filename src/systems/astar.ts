@@ -1,12 +1,13 @@
-import type { Point } from "../core/types";
-import { manhattan, keyPoint, parseKeyPoint } from "../core/util";
+import type { Point } from '../core/types';
+import { manhattan, keyPoint, parseKeyPoint } from '../core/util';
 
 export function aStar(
   start: Point,
   goal: Point,
   isWalkable: (p: Point) => boolean,
   isBlocked: (p: Point) => boolean,
-  maxIterations: number = 5000
+  maxIterations: number = 5000,
+  stepCost?: (p: Point) => number
 ): Point[] | undefined {
   const startKey: string = keyPoint(start);
   const goalKey: string = keyPoint(goal);
@@ -29,16 +30,25 @@ export function aStar(
     let currentF: number = Number.POSITIVE_INFINITY;
     for (const k of openSet) {
       const f: number = fScore.get(k) ?? Number.POSITIVE_INFINITY;
-      if (f < currentF) { currentF = f; currentKey = k; }
+      if (f < currentF) {
+        currentF = f;
+        currentKey = k;
+      }
     }
-    if (!currentKey) break;
+    if (!currentKey) {
+      break;
+    }
 
-    if (currentKey === goalKey) return reconstructPath(cameFrom, currentKey);
+    if (currentKey === goalKey) {
+      return reconstructPath(cameFrom, currentKey);
+    }
 
     openSet.delete(currentKey);
 
     const current: Point | undefined = parseKeyPoint(currentKey);
-    if (!current) break;
+    if (!current) {
+      break;
+    }
 
     const neighbors: Point[] = [
       { x: current.x + 1, y: current.y },
@@ -48,12 +58,21 @@ export function aStar(
     ];
 
     for (const nb of neighbors) {
-      if (!isWalkable(nb)) continue;
+      if (!isWalkable(nb)) {
+        continue;
+      }
 
       const nbKey: string = keyPoint(nb);
-      if (isBlocked(nb) && nbKey !== goalKey) continue;
+      if (isBlocked(nb) && nbKey !== goalKey) {
+        continue;
+      }
 
-      const tentativeG: number = (gScore.get(currentKey) ?? Number.POSITIVE_INFINITY) + 1;
+      const moveCost: number = Math.max(0.0001, stepCost ? stepCost(nb) : 1);
+      if (!Number.isFinite(moveCost)) {
+        continue;
+      }
+
+      const tentativeG: number = (gScore.get(currentKey) ?? Number.POSITIVE_INFINITY) + moveCost;
       const nbG: number = gScore.get(nbKey) ?? Number.POSITIVE_INFINITY;
 
       if (tentativeG < nbG) {
@@ -79,7 +98,9 @@ function reconstructPath(cameFrom: Map<string, string>, currentKey: string): Poi
   const pts: Point[] = [];
   for (const k of totalPathKeys) {
     const p: Point | undefined = parseKeyPoint(k);
-    if (p) pts.push(p);
+    if (p) {
+      pts.push(p);
+    }
   }
   return pts;
 }
