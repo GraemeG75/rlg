@@ -3,7 +3,7 @@ export class Rng {
 
   public constructor(seed: number) {
     this.state = seed | 0;
-    if (this.state === 0) this.state = 0x1234567;
+    if (this.state === 0) { this.state = 0x1234567; }
   }
 
   public nextU32(): number {
@@ -22,7 +22,7 @@ export class Rng {
 
   public nextInt(minInclusive: number, maxExclusive: number): number {
     const span: number = maxExclusive - minInclusive;
-    if (span <= 0) return minInclusive;
+    if (span <= 0) { return minInclusive; }
     return minInclusive + (this.nextU32() % span);
   }
 

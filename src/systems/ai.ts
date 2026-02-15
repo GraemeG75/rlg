@@ -16,6 +16,6 @@ export function nextMonsterStep(
     (p: Point) => !!isBlockedByEntity(entities, "dungeon", dungeon.id, p)
   );
 
-  if (!path || path.length < 2) return undefined;
+  if (!path || path.length < 2) { return undefined; }
   return path[1];
 }

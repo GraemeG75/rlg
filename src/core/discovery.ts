@@ -22,11 +22,11 @@ export function maybeDiscoverPois(
   turnCounter: number,
 ): boolean {
   const tile: string = overworld.getTile(playerPos.x, playerPos.y);
-  if (tile !== "town" && tile !== "dungeon") return false;
+  if (tile !== "town" && tile !== "dungeon") { return false; }
 
   const kind: DiscoveredPoiKind = tile === "town" ? "town" : "dungeon";
   const id: string = poiId(kind, playerPos);
-  if (discovered.some((p) => p.id === id)) return false;
+  if (discovered.some((p) => p.id === id)) { return false; }
 
   const name: string = kind === "town"
     ? `Town ${discovered.filter((p) => p.kind === "town").length + 1}`

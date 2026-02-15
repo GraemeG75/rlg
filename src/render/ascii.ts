@@ -59,23 +59,23 @@ export function renderAscii(ctx: RenderContext, viewWidth: number, viewHeight: n
 
 function findEntityChar(ctx: RenderContext, x: number, y: number): string | undefined {
   for (const e of ctx.entities) {
-    if (e.kind !== "monster") continue;
-    if (e.hp <= 0) continue;
+    if (e.kind !== "monster") { continue; }
+    if (e.hp <= 0) { continue; }
 
     if (ctx.mode === "overworld") {
-      if (e.mapRef.kind !== "overworld") continue;
+      if (e.mapRef.kind !== "overworld") { continue; }
     } else {
-      if (e.mapRef.kind !== "dungeon") continue;
-      if (!ctx.dungeon) continue;
-      if (e.mapRef.dungeonId !== ctx.dungeon.id) continue;
+      if (e.mapRef.kind !== "dungeon") { continue; }
+      if (!ctx.dungeon) { continue; }
+      if (e.mapRef.dungeonId !== ctx.dungeon.id) { continue; }
 
       if (ctx.useFov) {
         const v = getVisibility(ctx.dungeon, x, y);
-        if (v !== "visible") continue;
+        if (v !== "visible") { continue; }
       }
     }
 
-    if (e.pos.x === x && e.pos.y === y) return e.glyph;
+    if (e.pos.x === x && e.pos.y === y) { return e.glyph; }
   }
 
   return undefined;
@@ -83,21 +83,21 @@ function findEntityChar(ctx: RenderContext, x: number, y: number): string | unde
 
 function findItemChar(ctx: RenderContext, x: number, y: number): string | undefined {
   for (const it of ctx.items) {
-    if (!it.mapRef || !it.pos) continue;
+    if (!it.mapRef || !it.pos) { continue; }
 
     if (ctx.mode === "overworld") {
-      if (it.mapRef.kind !== "overworld") continue;
+      if (it.mapRef.kind !== "overworld") { continue; }
     } else {
-      if (it.mapRef.kind !== "dungeon") continue;
-      if (!ctx.dungeon) continue;
-      if (it.mapRef.dungeonId !== ctx.dungeon.id) continue;
+      if (it.mapRef.kind !== "dungeon") { continue; }
+      if (!ctx.dungeon) { continue; }
+      if (it.mapRef.dungeonId !== ctx.dungeon.id) { continue; }
       if (ctx.useFov) {
         const v = getVisibility(ctx.dungeon, x, y);
-        if (v !== "visible") continue;
+        if (v !== "visible") { continue; }
       }
     }
 
-    if (it.pos.x === x && it.pos.y === y) return itemChar(it.kind);
+    if (it.pos.x === x && it.pos.y === y) { return itemChar(it.kind); }
   }
 
   return undefined;

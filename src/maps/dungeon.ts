@@ -88,13 +88,13 @@ export function generateDungeon(dungeonId: string, baseId: string, depth: number
         overlaps = true; break;
       }
     }
-    if (overlaps) continue;
+    if (overlaps) { continue; }
 
     carveRoom(rx, ry, rw, rh);
     const center: Point = { x: rx + Math.floor(rw / 2), y: ry + Math.floor(rh / 2) };
     rooms.push({ x: rx, y: ry, w: rw, h: rh, center });
 
-    if (rooms.length > 1) carveCorridor(rooms[rooms.length - 2].center, center);
+    if (rooms.length > 1) { carveCorridor(rooms[rooms.length - 2].center, center); }
   }
 
   const stairsUp: Point = rooms.length > 0 ? rooms[0].center : { x: 2, y: 2 };
@@ -114,13 +114,13 @@ export function randomFloorPoint(dungeon: Dungeon, seed: number): Point {
     const x: number = rng.nextInt(1, dungeon.width - 1);
     const y: number = rng.nextInt(1, dungeon.height - 1);
     const t: DungeonTile = dungeon.tiles[idx(x, y, dungeon.width)];
-    if (t === "floor") return { x, y };
+    if (t === "floor") { return { x, y }; }
   }
   return { x: dungeon.stairsDown.x, y: dungeon.stairsDown.y };
 }
 
 function pickTheme(depth: number): DungeonTheme {
-  if (depth < 3) return "ruins";
-  if (depth < 6) return "caves";
+  if (depth < 3) { return "ruins"; }
+  if (depth < 6) { return "caves"; }
   return "crypt";
 }

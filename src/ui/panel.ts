@@ -1,4 +1,4 @@
-import type { Entity, GearRarity, Item, Shop } from '../core/types';
+import type { Entity, GearRarity, Item, Shop, ShopEconomy } from '../core/types';
 
 export type PanelMode = 'none' | 'inventory' | 'shop' | 'quest';
 
@@ -11,12 +11,21 @@ export type PanelContext = {
   quests: import('../core/types').Quest[];
   activeTownId?: string;
   shopCategory: 'all' | 'potion' | 'weapon' | 'armor';
+  shopEconomy?: ShopEconomy;
+  shopBuyPrices?: Record<string, number>;
+  shopSellPrices?: Record<string, number>;
 };
 
 export function renderPanelHtml(ctx: PanelContext): string {
-  if (ctx.mode === 'inventory') return renderInventory(ctx.player, ctx.items);
-  if (ctx.mode === 'shop') return renderShop(ctx.player, ctx.items, ctx.activeShop, ctx.canShop, ctx.shopCategory);
-  if (ctx.mode === 'quest') return renderQuestLog(ctx.quests, ctx.activeTownId);
+  if (ctx.mode === 'inventory') {
+    return renderInventory(ctx.player, ctx.items);
+  }
+  if (ctx.mode === 'shop') {
+    return renderShop(ctx.player, ctx.items, ctx.activeShop, ctx.canShop, ctx.shopCategory, ctx.shopEconomy, ctx.shopBuyPrices, ctx.shopSellPrices);
+  }
+  if (ctx.mode === 'quest') {
+    return renderQuestLog(ctx.quests, ctx.activeTownId, ctx.items);
+  }
   return `<div class="small muted">Panels: <b>I</b> inventory • <b>B</b> shop (in town) • <b>Q</b> quests (in town)</div>`;
 }
 
@@ -35,18 +44,28 @@ function renderRarityBadge(item: Item): string {
 }
 
 function formatItemExtra(it: Item): string {
-  if (it.kind === 'potion') return `(+${it.healAmount ?? 0} HP)`;
+  if (it.kind === 'potion') {
+    return `(+${it.healAmount ?? 0} HP)`;
+  }
 
   const parts: string[] = [];
   if (it.kind === 'weapon') {
     parts.push(`+${it.attackBonus ?? 0} Atk`);
-    if ((it.critChance ?? 0) > 0) parts.push(`+${it.critChance}% Crit`);
-    if ((it.lifesteal ?? 0) > 0) parts.push(`+${it.lifesteal}% Leech`);
+    if ((it.critChance ?? 0) > 0) {
+      parts.push(`+${it.critChance}% Crit`);
+    }
+    if ((it.lifesteal ?? 0) > 0) {
+      parts.push(`+${it.lifesteal}% Leech`);
+    }
   }
   if (it.kind === 'armor') {
     parts.push(`+${it.defenseBonus ?? 0} Def`);
-    if ((it.dodgeChance ?? 0) > 0) parts.push(`+${it.dodgeChance}% Dodge`);
-    if ((it.thorns ?? 0) > 0) parts.push(`+${it.thorns} Thorns`);
+    if ((it.dodgeChance ?? 0) > 0) {
+      parts.push(`+${it.dodgeChance}% Dodge`);
+    }
+    if ((it.thorns ?? 0) > 0) {
+      parts.push(`+${it.thorns} Thorns`);
+    }
   }
 
   return parts.length > 0 ? `(${parts.join(', ')})` : '';
@@ -63,9 +82,9 @@ function renderInventory(player: Entity, items: Item[]): string {
 
   const lines: string[] = [];
   lines.push(`<div class="panelTitle"><b>Inventory</b><span class="tag">I to close</span></div>`);
-  lines.push(`<div class="small">Gold: <b>${player.gold}</b> • Level: <b>${player.level}</b> • XP: <b>${player.xp}</b></div>`);
-  lines.push(`<div class="small">Weapon: ${weapon ? `<b>${escapeHtml(weapon.name)}</b>` : `<span class="muted">none</span>`}</div>`);
-  lines.push(`<div class="small">Armor: ${armor ? `<b>${escapeHtml(armor.name)}</b>` : `<span class="muted">none</span>`}</div>`);
+  lines.push(`<div class="small panelMeta">Gold: <b>${player.gold}</b> • Level: <b>${player.level}</b> • XP: <b>${player.xp}</b></div>`);
+  lines.push(`<div class="small panelLine">Weapon: ${weapon ? `<b>${escapeHtml(weapon.name)}</b>` : `<span class="muted">none</span>`}</div>`);
+  lines.push(`<div class="small panelLine">Armor: ${armor ? `<b>${escapeHtml(armor.name)}</b>` : `<span class="muted">none</span>`}</div>`);
   lines.push(`<div class="sep"></div>`);
 
   if (invItems.length === 0) {
@@ -78,7 +97,9 @@ function renderInventory(player: Entity, items: Item[]): string {
     const extra: string = formatItemExtra(it);
     const actions: string[] = [];
 
-    if (it.kind === 'potion') actions.push(`<button class="btnTiny" data-act="use" data-item="${it.id}">Use</button>`);
+    if (it.kind === 'potion') {
+      actions.push(`<button class="btnTiny" data-act="use" data-item="${it.id}">Use</button>`);
+    }
     if (it.kind === 'weapon') {
       const currentWeaponId: string | undefined = player.equipment.weaponItemId;
       const currentWeapon = currentWeaponId ? items.find((x) => x.id === currentWeaponId) : undefined;
@@ -116,7 +137,10 @@ function renderShop(
   items: Item[],
   shop: Shop | undefined,
   canShop: boolean,
-  category: 'all' | 'potion' | 'weapon' | 'armor'
+  category: 'all' | 'potion' | 'weapon' | 'armor',
+  economy: ShopEconomy | undefined,
+  buyPrices: Record<string, number> | undefined,
+  sellPrices: Record<string, number> | undefined
 ): string {
   const lines: string[] = [];
   lines.push(`<div class="panelTitle"><b>Town Shop</b><span class="tag">B to close</span></div>`);
@@ -131,7 +155,20 @@ function renderShop(
     return lines.join('');
   }
 
-  lines.push(`<div class="small">Gold: <b>${player.gold}</b></div>`);
+  lines.push(`<div class="small panelMeta">Gold: <b>${player.gold}</b></div>`);
+  if (economy) {
+    const specialtyLabel: string = economy.specialty === 'all' ? 'General' : economy.specialty[0].toUpperCase() + economy.specialty.slice(1);
+    const featuredItem: Item | undefined = economy.featuredItemId ? items.find((x) => x.id === economy.featuredItemId) : undefined;
+    const featuredText: string = featuredItem ? `Featured deal: <b>${escapeHtml(featuredItem.name)}</b> (-20%)` : 'Featured deal: none';
+    lines.push(
+      `<div class="small shopMeta">` +
+        `Economy: <b>${escapeHtml(economy.moodLabel)}</b> • ` +
+        `Specialty: <b>${escapeHtml(specialtyLabel)}</b> • ` +
+        `Restock in <b>${economy.restockIn}</b>` +
+        `</div>`
+    );
+    lines.push(`<div class="small shopDeal">${featuredText}</div>`);
+  }
   lines.push(
     `<div class="row" style="margin-top:6px;">` +
       `<button class="btnTiny" data-act="shopCat" data-cat="all">All</button>` +
@@ -141,27 +178,41 @@ function renderShop(
       `</div>`
   );
   lines.push(`<div class="sep"></div>`);
-  lines.push(`<div class="small muted">Buy</div>`);
+  lines.push(`<div class="panelSectionTitle">Buy</div>`);
   lines.push(`<div class="grid">`);
 
   for (const id of shop.stockItemIds.slice(0, 40)) {
     const it: Item | undefined = items.find((x) => x.id === id);
-    if (!it) continue;
-    if (category !== 'all' && it.kind !== category) continue;
+    if (!it) {
+      continue;
+    }
+    if (category !== 'all' && it.kind !== category) {
+      continue;
+    }
 
-    const price: number = it.value;
+    const price: number = buyPrices?.[it.id] ?? it.value;
     const extra: string = formatItemExtra(it);
 
     const rarityBadge: string = renderRarityBadge(it);
+    const isFeatured: boolean = economy?.featuredItemId === it.id;
+    const canAfford: boolean = player.gold >= price;
     lines.push(
-      `<div class="small">• ${rarityBadge}${escapeHtml(it.name)} <span class="muted">${escapeHtml(extra)}</span> <span class="muted">(${price}g)</span></div>`
+      `<div class="small">• ${rarityBadge}${escapeHtml(it.name)} ` +
+        `${isFeatured ? `<span class=\"dealTag\">Deal</span>` : ''}` +
+        ` <span class="muted">${escapeHtml(extra)}</span> ` +
+        `<span class="priceTag ${canAfford ? 'priceOk' : 'priceBad'}">${price}g</span>` +
+        `</div>`
     );
-    lines.push(`<div class="row" style="justify-content:flex-end;"><button class="btnTiny" data-act="buy" data-item="${it.id}">Buy</button></div>`);
+    lines.push(
+      `<div class="row" style="justify-content:flex-end;">` +
+        `<button class="btnTiny" data-act="buy" data-item="${it.id}" ${canAfford ? '' : 'disabled'}>Buy</button>` +
+        `</div>`
+    );
   }
   lines.push(`</div>`);
 
   lines.push(`<div class="sep"></div>`);
-  lines.push(`<div class="small muted">Sell (from inventory)</div>`);
+  lines.push(`<div class="panelSectionTitle">Sell (from inventory)</div>`);
 
   const invItems: Item[] = player.inventory.map((iid: string) => items.find((x) => x.id === iid)).filter((x: Item | undefined): x is Item => !!x);
 
@@ -172,12 +223,49 @@ function renderShop(
 
   lines.push(`<div class="grid">`);
   for (const it of invItems.slice(0, 30)) {
-    const price: number = Math.max(1, Math.floor(it.value * 0.5));
+    const price: number = sellPrices?.[it.id] ?? Math.max(1, Math.floor(it.value * 0.5));
     const rarityBadge: string = renderRarityBadge(it);
-    lines.push(`<div class="small">• ${rarityBadge}${escapeHtml(it.name)} <span class="muted">(${price}g)</span></div>`);
+    lines.push(`<div class="small">• ${rarityBadge}${escapeHtml(it.name)} <span class="priceTag">${price}g</span></div>`);
     lines.push(`<div class="row" style="justify-content:flex-end;"><button class="btnTiny" data-act="sell" data-item="${it.id}">Sell</button></div>`);
   }
   lines.push(`</div>`);
+
+  return lines.join('');
+}
+
+function renderQuestLog(quests: import('../core/types').Quest[], activeTownId: string | undefined, items: Item[]): string {
+  const lines: string[] = [];
+  lines.push(`<div class="panelTitle"><b>Quests</b><span class="tag">Q to close</span></div>`);
+
+  if (!activeTownId) {
+    lines.push(`<div class="small muted">Visit a town to manage quests.</div>`);
+  }
+
+  const scoped: import('../core/types').Quest[] = activeTownId ? quests.filter((q) => q.townId === activeTownId) : quests;
+  if (scoped.length === 0) {
+    lines.push(`<div class="small muted">No quests available.</div>`);
+    return lines.join('');
+  }
+
+  lines.push(`<div class="sep"></div>`);
+  for (const q of scoped) {
+    const status: string = q.turnedIn ? 'Turned in' : q.completed ? 'Complete' : 'Active';
+    const progress: string = q.kind === 'reachDepth' ? `Depth ${q.currentCount}/${q.targetCount}` : `Progress ${q.currentCount}/${q.targetCount}`;
+    const rewardItem: Item | undefined = q.rewardItemId ? items.find((it) => it.id === q.rewardItemId) : undefined;
+    const rewardItemLabel: string = rewardItem ? `, ${rewardItem.name}` : '';
+    lines.push(`<div class="small"><b>${escapeHtml(q.description)}</b></div>`);
+    lines.push(
+      `<div class="small panelLine">${escapeHtml(progress)} • Reward: ${q.rewardGold}g, ${q.rewardXp} XP${escapeHtml(rewardItemLabel)}</div>`
+    );
+    lines.push(`<div class="small muted">Status: ${escapeHtml(status)}</div>`);
+
+    if (activeTownId && q.townId === activeTownId && q.completed && !q.turnedIn) {
+      lines.push(
+        `<div class="row" style="justify-content:flex-end;"><button class="btnTiny" data-act="turnIn" data-quest="${q.id}">Turn In</button></div>`
+      );
+    }
+    lines.push(`<div class="sep"></div>`);
+  }
 
   return lines.join('');
 }

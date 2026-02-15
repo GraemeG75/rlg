@@ -49,7 +49,7 @@ export function drawMinimap(ctx: CanvasRenderingContext2D, context: MinimapConte
   for (const p of context.discoveredPois) {
     const dx: number = p.pos.x - context.playerPos.x;
     const dy: number = p.pos.y - context.playerPos.y;
-    if (Math.abs(dx) > half || Math.abs(dy) > half) continue;
+    if (Math.abs(dx) > half || Math.abs(dy) > half) { continue; }
     const mx: number = dx + half;
     const my: number = dy + half;
     ctx.fillStyle = p.kind === 'town' ? '#ffffff' : '#ffd36b';

@@ -76,6 +76,15 @@ export type Shop = {
   stockItemIds: string[];
 };
 
+export type ShopEconomy = {
+  moodLabel: string;
+  specialty: 'all' | 'potion' | 'weapon' | 'armor';
+  buyMultiplier: number;
+  sellMultiplier: number;
+  featuredItemId?: string;
+  restockIn: number;
+};
+
 export type Action =
   | { kind: 'move'; dx: number; dy: number }
   | { kind: 'use' }
@@ -105,7 +114,7 @@ export type StatusEffect = {
   potency: number;
 };
 
-export type QuestKind = 'killMonsters';
+export type QuestKind = 'killMonsters' | 'slayMonster' | 'reachDepth';
 
 export type Quest = {
   id: string;
@@ -116,10 +125,15 @@ export type Quest = {
   targetCount: number;
   currentCount: number;
 
+  targetMonster?: string;
+  targetDepth?: number;
+
   minDungeonDepth: number;
 
   rewardGold: number;
   rewardXp: number;
+  rewardItemId?: string;
+  rewardItemIds?: string[];
   completed: boolean;
   turnedIn: boolean;
 };

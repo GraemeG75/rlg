@@ -1,4 +1,4 @@
-import { Application, Container, Sprite, Texture } from 'pixi.js';
+import { Application, Container, Sprite, Texture, TilingSprite } from 'pixi.js';
 import type { Entity, Item, Mode } from '../core/types';
 import type { Overworld } from '../maps/overworld';
 import type { Dungeon, DungeonTheme } from '../maps/dungeon';
@@ -22,6 +22,14 @@ export class PixiRenderer {
   private tileLayer!: Container;
   private entityLayer!: Container;
   private overlayLayer!: Container;
+  private effectLayer!: Container;
+  private vignetteSprite?: Sprite;
+  private vignetteTexture?: Texture;
+  private fogSprite?: TilingSprite;
+  private fogTexture?: Texture;
+  private fogOffsetX: number;
+  private fogOffsetY: number;
+  private lastFogTime: number;
   private readonly textures: Map<SpriteKey | string, Texture>;
   private readonly tileSize: number;
   private readonly canvas: HTMLCanvasElement;
@@ -40,6 +48,9 @@ export class PixiRenderer {
     this.viewWidth = 0;
     this.viewHeight = 0;
     this.initialized = false;
+    this.fogOffsetX = 0;
+    this.fogOffsetY = 0;
+    this.lastFogTime = performance.now();
 
     this.app = new Application();
     this.ready = this.app
@@ -57,9 +68,11 @@ export class PixiRenderer {
         this.tileLayer = new Container();
         this.entityLayer = new Container();
         this.overlayLayer = new Container();
+        this.effectLayer = new Container();
         this.app.stage.addChild(this.tileLayer);
         this.app.stage.addChild(this.entityLayer);
         this.app.stage.addChild(this.overlayLayer);
+        this.app.stage.addChild(this.effectLayer);
         this.initialized = true;
 
         if (this.pendingRender) {
@@ -92,6 +105,7 @@ export class PixiRenderer {
     const halfH: number = Math.floor(viewHeight / 2);
     const originX: number = ctx.player.pos.x;
     const originY: number = ctx.player.pos.y;
+    const lightRadius: number = Math.max(halfW, halfH) + 1;
 
     const pendingStairs: { wx: number; wy: number; glyph: string; color: string; alpha: number }[] = [];
 
@@ -133,8 +147,10 @@ export class PixiRenderer {
             }
           }
 
+          const dist: number = Math.max(Math.abs(x), Math.abs(y));
+          const lightFactor: number = this.lightFalloff(dist, lightRadius);
           sprite.texture = this.getTexture(this.dungeonKey(dungeon.theme, tile));
-          sprite.alpha = tileAlpha;
+          sprite.alpha = tileAlpha * lightFactor;
           sprite.visible = true;
 
           if (tile === 'stairsUp' || tile === 'stairsDown') {
@@ -144,7 +160,7 @@ export class PixiRenderer {
               wy,
               glyph: tile === 'stairsUp' ? '<' : '>',
               color: palette.glyph,
-              alpha: tileAlpha
+              alpha: tileAlpha * lightFactor
             });
           }
         }
@@ -154,9 +170,19 @@ export class PixiRenderer {
     this.entityLayer.removeChildren();
     this.overlayLayer.removeChildren();
 
-    this.drawItems(ctx, originX, originY, halfW, halfH);
-    this.drawMonsters(ctx, originX, originY, halfW, halfH);
-    this.drawPlayer(originX, originY, halfW, halfH);
+    const now: number = performance.now();
+    this.drawItems(ctx, originX, originY, halfW, halfH, lightRadius, now);
+    this.drawMonsters(ctx, originX, originY, halfW, halfH, lightRadius, now);
+    this.drawPlayer(originX, originY, halfW, halfH, lightRadius, now);
+
+    if (this.fogSprite) {
+      this.fogSprite.visible = ctx.mode === 'dungeon';
+    }
+    this.updateFogDrift();
+
+    if (this.vignetteSprite) {
+      this.vignetteSprite.alpha = ctx.mode === 'dungeon' ? 0.75 : 0.45;
+    }
 
     for (const s of pendingStairs) {
       const screen = this.worldToScreen(s.wx, s.wy, originX, originY, halfW, halfH);
@@ -187,6 +213,9 @@ export class PixiRenderer {
     this.tileSprites = [];
     this.tileLayer.removeChildren();
 
+    this.updateFog(widthPx, heightPx);
+    this.updateVignette(widthPx, heightPx);
+
     for (let row: number = 0; row < viewHeight; row++) {
       for (let col: number = 0; col < viewWidth; col++) {
         const sprite: Sprite = new Sprite(this.getTexture('ow_grass'));
@@ -202,7 +231,7 @@ export class PixiRenderer {
     }
   }
 
-  private drawItems(ctx: PixiRenderContext, originX: number, originY: number, halfW: number, halfH: number): void {
+  private drawItems(ctx: PixiRenderContext, originX: number, originY: number, halfW: number, halfH: number, lightRadius: number, now: number): void {
     for (const it of ctx.items) {
       if (!it.mapRef || !it.pos) {
         continue;
@@ -234,15 +263,28 @@ export class PixiRenderer {
       }
       const spriteKey: SpriteKey = it.kind === 'potion' ? 'it_potion' : it.kind === 'weapon' ? 'it_weapon' : 'it_armor';
       const sprite = new Sprite(this.getTexture(spriteKey));
+      const bob: number = Math.sin(now / 320 + this.phaseFromId(it.id)) * 0.6;
       sprite.x = screen.x;
-      sprite.y = screen.y;
+      sprite.y = screen.y + bob;
       sprite.width = this.tileSize;
       sprite.height = this.tileSize;
+      if (ctx.mode === 'dungeon') {
+        const dist: number = Math.max(Math.abs(it.pos.x - originX), Math.abs(it.pos.y - originY));
+        sprite.alpha = this.lightFalloff(dist, lightRadius);
+      }
       this.entityLayer.addChild(sprite);
     }
   }
 
-  private drawMonsters(ctx: PixiRenderContext, originX: number, originY: number, halfW: number, halfH: number): void {
+  private drawMonsters(
+    ctx: PixiRenderContext,
+    originX: number,
+    originY: number,
+    halfW: number,
+    halfH: number,
+    lightRadius: number,
+    now: number
+  ): void {
     for (const entity of ctx.entities) {
       if (entity.kind !== 'monster' || entity.hp <= 0) {
         continue;
@@ -274,25 +316,136 @@ export class PixiRenderer {
       }
       const spriteKey = this.monsterKey(entity.glyph);
       const sprite = new Sprite(this.getTexture(spriteKey));
+      const sway: number = Math.sin(now / 520 + this.phaseFromId(entity.id)) * 0.4;
       sprite.x = screen.x;
-      sprite.y = screen.y;
+      sprite.y = screen.y + sway;
       sprite.width = this.tileSize;
       sprite.height = this.tileSize;
+      if (ctx.mode === 'dungeon') {
+        const dist: number = Math.max(Math.abs(entity.pos.x - originX), Math.abs(entity.pos.y - originY));
+        sprite.alpha = this.lightFalloff(dist, lightRadius);
+      }
       this.entityLayer.addChild(sprite);
     }
   }
 
-  private drawPlayer(originX: number, originY: number, halfW: number, halfH: number): void {
+  private drawPlayer(originX: number, originY: number, halfW: number, halfH: number, lightRadius: number, now: number): void {
     const screen = this.worldToScreen(originX, originY, originX, originY, halfW, halfH);
     if (!screen) {
       return;
     }
     const sprite = new Sprite(this.getTexture('ent_player'));
+    const pulse: number = Math.sin(now / 700) * 0.4;
     sprite.x = screen.x;
-    sprite.y = screen.y;
+    sprite.y = screen.y + pulse;
     sprite.width = this.tileSize;
     sprite.height = this.tileSize;
+    const dist: number = 0;
+    sprite.alpha = this.lightFalloff(dist, lightRadius);
     this.overlayLayer.addChild(sprite);
+  }
+
+  private lightFalloff(dist: number, radius: number): number {
+    const t: number = Math.min(1, dist / Math.max(1, radius));
+    return Math.max(0.25, 1 - t * 0.85);
+  }
+
+  private phaseFromId(id: string): number {
+    let hash: number = 0;
+    for (let i: number = 0; i < id.length; i++) {
+      hash = (hash * 31 + id.charCodeAt(i)) | 0;
+    }
+    return (hash % 628) / 100;
+  }
+
+  private updateFog(widthPx: number, heightPx: number): void {
+    if (this.fogTexture) {
+      this.fogTexture.destroy(true);
+    }
+
+    const canvas: HTMLCanvasElement = document.createElement('canvas');
+    canvas.width = 64;
+    canvas.height = 64;
+    const ctx: CanvasRenderingContext2D | null = canvas.getContext('2d');
+    if (!ctx) {
+      return;
+    }
+
+    ctx.clearRect(0, 0, canvas.width, canvas.height);
+    ctx.fillStyle = 'rgba(255, 255, 255, 0.03)';
+    for (let i: number = 0; i < 120; i += 1) {
+      const x: number = (i * 23) % canvas.width;
+      const y: number = (i * 37) % canvas.height;
+      ctx.beginPath();
+      ctx.arc(x, y, (i % 7) + 3, 0, Math.PI * 2);
+      ctx.fill();
+    }
+
+    this.fogTexture = Texture.from(canvas);
+    if (!this.fogSprite) {
+      this.fogSprite = new TilingSprite({ texture: this.fogTexture, width: widthPx, height: heightPx });
+      this.fogSprite.alpha = 0.18;
+      this.fogSprite.x = 0;
+      this.fogSprite.y = 0;
+      this.effectLayer.addChild(this.fogSprite);
+    } else {
+      this.fogSprite.texture = this.fogTexture;
+      this.fogSprite.width = widthPx;
+      this.fogSprite.height = heightPx;
+    }
+  }
+
+  private updateFogDrift(): void {
+    if (!this.fogSprite) {
+      return;
+    }
+    const now: number = performance.now();
+    const dt: number = Math.min(80, now - this.lastFogTime);
+    this.lastFogTime = now;
+    const driftSpeed: number = 0.006;
+    this.fogOffsetX += dt * driftSpeed;
+    this.fogOffsetY += dt * driftSpeed * 0.6;
+    this.fogSprite.tilePosition.x = -this.fogOffsetX;
+    this.fogSprite.tilePosition.y = -this.fogOffsetY;
+  }
+
+  private updateVignette(widthPx: number, heightPx: number): void {
+    if (this.vignetteTexture) {
+      this.vignetteTexture.destroy(true);
+    }
+
+    const canvas: HTMLCanvasElement = document.createElement('canvas');
+    canvas.width = widthPx;
+    canvas.height = heightPx;
+    const ctx: CanvasRenderingContext2D | null = canvas.getContext('2d');
+    if (!ctx) {
+      return;
+    }
+
+    const cx: number = widthPx / 2;
+    const cy: number = heightPx / 2;
+    const radius: number = Math.max(widthPx, heightPx) * 0.7;
+    const gradient: CanvasGradient = ctx.createRadialGradient(cx, cy, radius * 0.08, cx, cy, radius);
+    gradient.addColorStop(0, 'rgba(0, 0, 0, 0)');
+    gradient.addColorStop(0.5, 'rgba(0, 0, 0, 0.2)');
+    gradient.addColorStop(1, 'rgba(0, 0, 0, 0.75)');
+
+    ctx.fillStyle = gradient;
+    ctx.fillRect(0, 0, widthPx, heightPx);
+
+    this.vignetteTexture = Texture.from(canvas);
+    if (!this.vignetteSprite) {
+      this.vignetteSprite = new Sprite(this.vignetteTexture);
+      this.vignetteSprite.x = 0;
+      this.vignetteSprite.y = 0;
+      this.vignetteSprite.width = widthPx;
+      this.vignetteSprite.height = heightPx;
+      this.effectLayer.addChild(this.vignetteSprite);
+    } else {
+      this.vignetteSprite.texture = this.vignetteTexture;
+      this.vignetteSprite.width = widthPx;
+      this.vignetteSprite.height = heightPx;
+    }
   }
 
   private worldToScreen(

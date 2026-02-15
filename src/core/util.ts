@@ -18,9 +18,9 @@ export function keyPoint(p: Point): string {
 
 export function parseKeyPoint(k: string): Point | undefined {
   const parts: string[] = k.split(',');
-  if (parts.length !== 2) return undefined;
+  if (parts.length !== 2) { return undefined; }
   const x: number = Number(parts[0]);
   const y: number = Number(parts[1]);
-  if (Number.isNaN(x) || Number.isNaN(y)) return undefined;
+  if (Number.isNaN(x) || Number.isNaN(y)) { return undefined; }
   return { x, y };
 }
