@@ -155,6 +155,73 @@
       .btnHidden {
         display: none;
       }
+      .classSelectOverlay {
+        position: fixed;
+        inset: 0;
+        background: rgba(7, 10, 15, 0.92);
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        z-index: 999;
+      }
+      .classSelectOverlay.hidden {
+        display: none;
+      }
+      .classSelectCard {
+        background: #0b1320;
+        border: 1px solid #1a2433;
+        border-radius: 12px;
+        padding: 24px;
+        width: min(540px, 90%);
+        box-shadow: 0 18px 40px rgba(0, 0, 0, 0.45);
+      }
+      .classSelectCard h2 {
+        margin: 0 0 8px;
+      }
+      .classSelectCard p {
+        margin: 0 0 16px;
+        color: #93a7c8;
+      }
+      .classGrid {
+        display: grid;
+        gap: 12px;
+      }
+      .classChoice {
+        text-align: left;
+        background: #122033;
+        border: 1px solid #1a2433;
+        border-radius: 10px;
+        padding: 14px;
+        color: #cfe3ff;
+        cursor: pointer;
+        transition:
+          border-color 0.2s,
+          transform 0.2s;
+      }
+      .classChoice strong {
+        display: block;
+        font-size: 16px;
+        margin-bottom: 4px;
+        color: #e7f0ff;
+      }
+      .classChoice span {
+        display: block;
+        font-size: 13px;
+        color: #93a7c8;
+      }
+      .classChoice small {
+        display: block;
+        margin-top: 6px;
+        font-size: 12px;
+        color: #a9c5ff;
+      }
+      .classChoice:hover {
+        border-color: #4b6ea7;
+        transform: translateY(-1px);
+      }
+      a {
+        color: #cfe3ff;
+      }
     </style>
   </head>
   <body>
@@ -221,6 +288,47 @@
         <div id="stats"></div>
         <div id="panel"></div>
         <div id="log"></div>
+      </div>
+    </div>
+
+    <div
+      id="classSelect"
+      class="classSelectOverlay">
+      <div class="classSelectCard">
+        <h2>Select Your Adventurer</h2>
+        <p>Each hero fights differently. Pick the style that suits you.</p>
+        <div class="classGrid">
+          <button
+            type="button"
+            class="classChoice"
+            data-class="warrior">
+            <strong>Warrior</strong>
+            <span>Heavy melee fighter with unmatched strength.</span>
+            <small>Strength 6 • Agility 3 • Intellect 2</small>
+          </button>
+          <button
+            type="button"
+            class="classChoice"
+            data-class="rogue">
+            <strong>Rogue</strong>
+            <span>Fast strikes, high agility, and lethal precision.</span>
+            <small>Strength 3 • Agility 6 • Intellect 3</small>
+          </button>
+          <button
+            type="button"
+            class="classChoice"
+            data-class="mage">
+            <strong>Mage</strong>
+            <span>Harness arcane power to burn through defenses.</span>
+            <small>Strength 2 • Agility 3 • Intellect 7</small>
+          </button>
+        </div>
+        <button
+          id="btnLoadFromModal"
+          type="button"
+          class="btnTiny marginTop12">
+          Load Saved Game
+        </button>
       </div>
     </div>
 

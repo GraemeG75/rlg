@@ -2,7 +2,9 @@ export type Point = { x: number; y: number };
 
 export type Mode = 'overworld' | 'dungeon';
 
-export type MapRef = { kind: 'overworld'; dungeonId: string } | { kind: 'dungeon'; dungeonId: string };
+export type MapRef = { kind: 'overworld' } | { kind: 'dungeon'; dungeonId: string };
+
+export type CharacterClass = 'warrior' | 'mage' | 'rogue';
 
 export type EntityKind = 'player' | 'monster';
 
@@ -33,6 +35,10 @@ export type Entity = {
   inventory: string[]; // item ids
   equipment: Equipment;
 
+  classType?: CharacterClass;
+  strength?: number;
+  agility?: number;
+  intellect?: number;
   statusEffects?: StatusEffect[];
 };
 

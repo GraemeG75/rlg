@@ -1,4 +1,4 @@
-import type { Action, Entity, Item, Mode, Point, Shop } from './core/types';
+import type { Action, CharacterClass, Entity, Item, Mode, Point, Shop } from './core/types';
 import { Rng } from './core/rng';
 import { add, manhattan } from './core/util';
 import { Overworld, dungeonBaseIdFromWorldPos, dungeonLevelId, dungeonSeedFromWorldPos, townIdFromWorldPos } from './maps/overworld';
@@ -35,6 +35,7 @@ type GameState = {
   dungeonStack: DungeonStackFrame[];
 
   player: Entity;
+  playerClass: CharacterClass;
   entities: Entity[];
   items: Item[];
 
@@ -58,6 +59,59 @@ type GameState = {
   log: MessageLog;
 };
 
+type ClassConfig = {
+  name: string;
+  description: string;
+  maxHp: number;
+  baseAttack: number;
+  baseDefense: number;
+  strength: number;
+  agility: number;
+  intellect: number;
+};
+
+const CLASS_CONFIG: Record<CharacterClass, ClassConfig> = {
+  warrior: {
+    name: 'Warrior',
+    description: 'Brutal melee fighter with crushing swings.',
+    maxHp: 28,
+    baseAttack: 4,
+    baseDefense: 2,
+    strength: 6,
+    agility: 3,
+    intellect: 2
+  },
+  rogue: {
+    name: 'Rogue',
+    description: 'Swift and cunning, striking where it hurts most.',
+    maxHp: 22,
+    baseAttack: 3,
+    baseDefense: 1,
+    strength: 3,
+    agility: 6,
+    intellect: 3
+  },
+  mage: {
+    name: 'Mage',
+    description: 'Master of arcane force that burns through armor.',
+    maxHp: 18,
+    baseAttack: 2,
+    baseDefense: 0,
+    strength: 2,
+    agility: 3,
+    intellect: 7
+  }
+};
+
+function ensureClassAttributes(player: Entity, classType: CharacterClass): void {
+  const cfg: ClassConfig = CLASS_CONFIG[classType];
+  player.classType = classType;
+  if (player.statusEffects === undefined) player.statusEffects = [];
+  if (player.strength === undefined) player.strength = cfg.strength;
+  if (player.agility === undefined) player.agility = cfg.agility;
+  if (player.intellect === undefined) player.intellect = cfg.intellect;
+}
+
 const asciiEl: HTMLElement = document.getElementById('ascii')!;
 const canvasWrap: HTMLElement = document.getElementById('canvasWrap')!;
 const modePill: HTMLElement = document.getElementById('modePill')!;
@@ -80,11 +134,19 @@ const canvasRenderer: PixiRenderer = new PixiRenderer(canvas);
 const PIXI_VIEW_W: number = Math.max(1, Math.floor(canvas.width / 16) - 1);
 const PIXI_VIEW_H: number = Math.max(1, Math.floor(canvas.height / 16) - 1);
 
+const classModal: HTMLElement = document.getElementById('classSelect')!;
+const classButtons: HTMLButtonElement[] = Array.from(classModal.querySelectorAll<HTMLButtonElement>('[data-class]'));
+const btnLoadFromModal: HTMLButtonElement = document.getElementById('btnLoadFromModal') as HTMLButtonElement;
+
+let pendingSeed: number = Date.now() & 0xffffffff;
+let pendingClass: CharacterClass = 'warrior';
+canvasWrap.classList.add('displayNone');
 btnAscii.style.display = 'none';
 
-function newGame(worldSeed: number): GameState {
+function newGame(worldSeed: number, classChoice: CharacterClass): GameState {
   const rng: Rng = new Rng(worldSeed);
   const overworld: Overworld = new Overworld(worldSeed);
+  const cfg: ClassConfig = CLASS_CONFIG[classChoice];
 
   const player: Entity = {
     id: 'player',
@@ -93,15 +155,19 @@ function newGame(worldSeed: number): GameState {
     glyph: '@',
     pos: findStartPosition(overworld, rng),
     mapRef: { kind: 'overworld' },
-    hp: 20,
-    maxHp: 20,
-    baseAttack: 2,
-    baseDefense: 0,
+    hp: cfg.maxHp,
+    maxHp: cfg.maxHp,
+    baseAttack: cfg.baseAttack,
+    baseDefense: cfg.baseDefense,
     level: 1,
     xp: 0,
     gold: 20,
     inventory: [],
     equipment: {},
+    classType: classChoice,
+    strength: cfg.strength,
+    agility: cfg.agility,
+    intellect: cfg.intellect,
     statusEffects: []
   };
 
@@ -113,6 +179,7 @@ function newGame(worldSeed: number): GameState {
     dungeons: new Map<string, Dungeon>(),
     dungeonStack: [],
     player,
+    playerClass: classChoice,
     entities: [player],
     items: [],
     shops: new Map<string, Shop>(),
@@ -132,6 +199,7 @@ function newGame(worldSeed: number): GameState {
   state.log.push('Welcome. Find a town (T) to shop or a dungeon (D) to descend.');
   state.log.push('I inventory • B shop (town) • Q quests (town) • G pick up items in dungeons.');
   state.log.push('P save • O load • R renderer • F FOV');
+  state.log.push(`Class: ${cfg.name} • Str ${cfg.strength} • Agi ${cfg.agility} • Int ${cfg.intellect}.`);
   return state;
 }
 
@@ -144,7 +212,27 @@ function findStartPosition(overworld: Overworld, rng: Rng): Point {
   return { x: 0, y: 0 };
 }
 
-let state: GameState = newGame(Date.now() & 0xffffffff);
+let state: GameState = newGame(pendingSeed, pendingClass);
+
+function hideClassModal(): void {
+  classModal.classList.add('hidden');
+}
+
+function showClassModal(): void {
+  classModal.classList.remove('hidden');
+}
+
+function isClassModalVisible(): boolean {
+  return !classModal.classList.contains('hidden');
+}
+
+function startNewRun(classChoice: CharacterClass): void {
+  pendingClass = classChoice;
+  state = newGame(pendingSeed, classChoice);
+  hideClassModal();
+  syncRendererUi();
+  render();
+}
 
 function getCurrentDungeon(s: GameState): Dungeon | undefined {
   if (s.player.mapRef.kind !== 'dungeon') return undefined;
@@ -739,16 +827,79 @@ function getEquippedDefenseBonus(entity: Entity): number {
   return it?.defenseBonus ?? 0;
 }
 
+type LevelUpGains = {
+  hp: number;
+  attack: number;
+  defense: number;
+  strength: number;
+  agility: number;
+  intellect: number;
+};
+
+function applyLevelUpGrowth(player: Entity, classType: CharacterClass): LevelUpGains {
+  ensureClassAttributes(player, classType);
+
+  const level: number = player.level;
+  let gains: LevelUpGains;
+
+  switch (classType) {
+    case 'warrior': {
+      gains = {
+        hp: 6,
+        attack: 2,
+        defense: level % 2 === 0 ? 1 : 0,
+        strength: 2,
+        agility: level % 3 === 0 ? 1 : 0,
+        intellect: level % 4 === 0 ? 1 : 0
+      };
+      break;
+    }
+    case 'rogue': {
+      gains = {
+        hp: 4,
+        attack: 1,
+        defense: level % 3 === 0 ? 1 : 0,
+        strength: 1,
+        agility: 2,
+        intellect: level % 2 === 0 ? 1 : 0
+      };
+      break;
+    }
+    case 'mage':
+    default: {
+      gains = {
+        hp: 3,
+        attack: 1,
+        defense: level % 4 === 0 ? 1 : 0,
+        strength: level % 4 === 0 ? 1 : 0,
+        agility: level % 3 === 0 ? 1 : 0,
+        intellect: 2
+      };
+      break;
+    }
+  }
+
+  player.maxHp += gains.hp;
+  player.baseAttack += gains.attack;
+  player.baseDefense += gains.defense;
+  player.strength = (player.strength ?? 0) + gains.strength;
+  player.agility = (player.agility ?? 0) + gains.agility;
+  player.intellect = (player.intellect ?? 0) + gains.intellect;
+
+  return gains;
+}
+
 function awardXp(amount: number): void {
   state.player.xp += amount;
   while (state.player.xp >= xpToNextLevel(state.player.level)) {
     state.player.xp -= xpToNextLevel(state.player.level);
     state.player.level += 1;
-    state.player.maxHp += 5;
+    const gains: LevelUpGains = applyLevelUpGrowth(state.player, state.playerClass);
     state.player.hp = state.player.maxHp;
-    state.player.baseAttack += 1;
-    if (state.player.level % 2 === 0) state.player.baseDefense += 1;
     state.log.push(`*** Level up! You are now level ${state.player.level}. ***`);
+    const gainParts: string[] = [`+${gains.hp} HP`, `+${gains.attack} Atk`];
+    if (gains.defense > 0) gainParts.push(`+${gains.defense} Def`);
+    state.log.push(`Gains: ${gainParts.join(', ')}. Str ${state.player.strength} • Agi ${state.player.agility} • Int ${state.player.intellect}.`);
   }
 }
 
@@ -757,18 +908,73 @@ function xpToNextLevel(level: number): number {
 }
 
 function attack(attacker: Entity, defender: Entity): void {
-  const atk: number = attacker.baseAttack + getEquippedAttackBonus(attacker);
-  const def: number = defender.baseDefense + getEquippedDefenseBonus(defender);
+  let atk: number = attacker.baseAttack + getEquippedAttackBonus(attacker);
+  let def: number = defender.baseDefense + getEquippedDefenseBonus(defender);
+  const originalDef: number = def;
 
-  const roll: number = state.rng.nextInt(0, 5); // 0-4
+  let damageMultiplier: number = 1;
+  let suffix: string = '';
+  let playerVerb: string = 'hit';
+
+  if (attacker.kind === 'player') {
+    const classType: CharacterClass = state.playerClass;
+    ensureClassAttributes(attacker, classType);
+
+    switch (classType) {
+      case 'warrior': {
+        const strength: number = attacker.strength ?? 0;
+        atk += Math.floor(strength / 2);
+        playerVerb = 'cleave';
+        break;
+      }
+      case 'rogue': {
+        const agility: number = attacker.agility ?? 0;
+        atk += Math.floor(agility / 2);
+        const critChance: number = Math.min(60, 10 + agility * 4);
+        if (state.rng.nextInt(0, 100) < critChance) {
+          damageMultiplier = 2;
+          playerVerb = 'backstab';
+          suffix = ' (critical!)';
+        } else {
+          playerVerb = 'stab';
+        }
+        break;
+      }
+      case 'mage':
+      default: {
+        const intellect: number = attacker.intellect ?? 0;
+        atk += Math.floor(intellect / 2);
+        def = Math.floor(def * 0.5);
+        if (def < originalDef) suffix = ' (armor melts)';
+        playerVerb = 'blast';
+        break;
+      }
+    }
+  }
+
+  const roll: number = state.rng.nextInt(0, 5);
   const raw: number = atk + roll;
-  const dmg: number = Math.max(1, raw - def);
+  let dmg: number = Math.max(1, raw - def);
+  dmg = Math.max(1, Math.floor(dmg * damageMultiplier));
 
   defender.hp -= dmg;
-  state.log.push(`${attacker.name} hits ${defender.name} for ${dmg}. (${Math.max(0, defender.hp)}/${defender.maxHp})`);
+
+  const defenderHpText: string = `(${Math.max(0, defender.hp)}/${defender.maxHp})`;
+  if (attacker.kind === 'player') {
+    state.log.push(`You ${playerVerb} ${defender.name} for ${dmg}${suffix}. ${defenderHpText}`);
+  } else if (defender.kind === 'player') {
+    state.log.push(`${attacker.name} hits you for ${dmg}. ${defenderHpText}`);
+  } else {
+    state.log.push(`${attacker.name} hits ${defender.name} for ${dmg}. ${defenderHpText}`);
+  }
 
   if (defender.hp <= 0) {
-    state.log.push(`${defender.name} dies.`);
+    if (defender.kind === 'player') {
+      state.log.push('You fall. Darkness closes in.');
+    } else {
+      state.log.push(`${defender.name} dies.`);
+    }
+
     if (attacker.kind === 'player') {
       const xp: number = 6 + (defender.baseAttack + defender.baseDefense);
       const gold: number = 2 + state.rng.nextInt(0, 4);
@@ -918,11 +1124,16 @@ function render(): void {
     computeDungeonFov(dungeon, state.player.pos, 10);
   }
 
+  const classInfo: ClassConfig = CLASS_CONFIG[state.playerClass];
   const atk: number = state.player.baseAttack + getEquippedAttackBonus(state.player);
   const def: number = state.player.baseDefense + getEquippedDefenseBonus(state.player);
+  const str: number = state.player.strength ?? 0;
+  const agi: number = state.player.agility ?? 0;
+  const intl: number = state.player.intellect ?? 0;
 
   statsEl.innerHTML = `
     <div class="kv"><div><b>${escapeHtml(state.player.name)}</b> <span class="muted">Lvl ${state.player.level}</span></div><div>HP ${state.player.hp}/${state.player.maxHp}</div></div>
+    <div class="kv small"><div>Class ${escapeHtml(classInfo.name)}</div><div>Str ${str} • Agi ${agi} • Int ${intl}</div></div>
     <div class="kv small"><div>Atk ${atk}</div><div>Def ${def}</div></div>
     <div class="kv small"><div>XP ${state.player.xp}/${xpToNextLevel(state.player.level)}</div><div>Gold ${state.player.gold}</div></div>
     <div class="kv small"><div>Pos ${state.player.pos.x}, ${state.player.pos.y}</div><div class="muted">Turn ${state.turnCounter}</div></div>
@@ -1234,6 +1445,15 @@ function handleMapKey(e: KeyboardEvent): void {
 }
 
 window.addEventListener('keydown', (e: KeyboardEvent) => {
+  if (isClassModalVisible()) {
+    if (e.key === 'o' || e.key === 'O') {
+      e.preventDefault();
+      doLoad();
+      syncRendererUi();
+      render();
+    }
+    return;
+  }
   if (state.mapOpen) {
     e.preventDefault();
     handleMapKey(e);
@@ -1258,9 +1478,9 @@ btnCanvas.addEventListener('click', () => {
 });
 
 btnNewSeed.addEventListener('click', () => {
-  state = newGame(Date.now() & 0xffffffff);
-  syncRendererUi();
-  render();
+  pendingSeed = Date.now() & 0xffffffff;
+  state.log.push(`Preparing new world seed ${pendingSeed}. Choose your class to begin.`);
+  showClassModal();
 });
 
 btnSave.addEventListener('click', () => {
@@ -1287,6 +1507,20 @@ btnMap.addEventListener('click', () => {
   handleAction({ kind: 'toggleMap' });
 });
 
+classButtons.forEach((btn) => {
+  btn.addEventListener('click', () => {
+    const choice = btn.dataset.class as CharacterClass | undefined;
+    if (!choice) return;
+    startNewRun(choice);
+  });
+});
+
+btnLoadFromModal.addEventListener('click', () => {
+  doLoad();
+  syncRendererUi();
+  render();
+});
+
 function doSave(): void {
   const dungeons: Dungeon[] = [...state.dungeons.values()];
   const shops: Shop[] = [...state.shops.values()];
@@ -1296,6 +1530,7 @@ function doSave(): void {
     worldSeed: state.worldSeed,
     mode: state.mode,
     playerId: state.player.id,
+    playerClass: state.playerClass,
     entities: state.entities,
     items: state.items,
     dungeons,
@@ -1333,6 +1568,9 @@ function doLoad(): void {
     return;
   }
 
+  const loadedClass: CharacterClass = data.playerClass ?? player.classType ?? 'warrior';
+  ensureClassAttributes(player, loadedClass);
+
   state = {
     worldSeed: data.worldSeed,
     rng,
@@ -1341,6 +1579,7 @@ function doLoad(): void {
     dungeons: dungeonsMap,
     dungeonStack: rebuildDungeonStackFromPlayer(data, player),
     player,
+    playerClass: loadedClass,
     entities: data.entities,
     items: data.items,
     shops: shopsMap,
@@ -1353,7 +1592,12 @@ function doLoad(): void {
     log: new MessageLog(160)
   };
 
+  pendingClass = loadedClass;
+  pendingSeed = data.worldSeed;
+  hideClassModal();
   state.log.push('Loaded.');
+  const loadedCfg: ClassConfig = CLASS_CONFIG[loadedClass];
+  state.log.push(`Class: ${loadedCfg.name} • Str ${state.player.strength} • Agi ${state.player.agility} • Int ${state.player.intellect}.`);
 }
 
 function rebuildDungeonStackFromPlayer(data: SaveDataV3, player: Entity): DungeonStackFrame[] {

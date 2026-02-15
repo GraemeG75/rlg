@@ -1,14 +1,15 @@
-import type { Entity, Item, Shop } from "./types";
-import type { Dungeon } from "../maps/dungeon";
+import type { Entity, Item, Shop } from './types';
+import type { Dungeon } from '../maps/dungeon';
 
-export const SAVE_KEY: string = "web-roguelike-starter-save-v3";
+export const SAVE_KEY: string = 'web-roguelike-starter-save-v3';
 
 export type SaveDataV3 = {
   version: 3;
   worldSeed: number;
-  mode: "overworld" | "dungeon";
+  mode: 'overworld' | 'dungeon';
 
   playerId: string;
+  playerClass?: import('./types').CharacterClass;
 
   entities: Entity[];
   items: Item[];
@@ -20,10 +21,10 @@ export type SaveDataV3 = {
 
   // Progression
   turnCounter: number;
-  quests: import("./types").Quest[];
+  quests: import('./types').Quest[];
 
   // UI state (optional)
-  activePanel: "none" | "inventory" | "shop" | "quest";
+  activePanel: 'none' | 'inventory' | 'shop' | 'quest';
 };
 
 export function saveToLocalStorage(data: SaveDataV3): void {
