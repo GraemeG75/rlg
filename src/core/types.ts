@@ -128,6 +128,7 @@ export type OverworldTile =
   | 'forest'
   | 'mountain'
   | 'mountain_snow'
+  | 'cave'
   | 'dungeon'
   | 'town'
   | 'town_ground'

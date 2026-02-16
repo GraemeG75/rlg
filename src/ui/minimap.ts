@@ -5,7 +5,7 @@ export type MinimapContext = {
   overworld: Overworld;
   playerPos: Point;
   destination?: Point;
-  discoveredPois: { kind: 'town' | 'dungeon'; pos: Point }[];
+  discoveredPois: { kind: 'town' | 'dungeon' | 'cave'; pos: Point }[];
 };
 
 export function drawMinimap(ctx: CanvasRenderingContext2D, context: MinimapContext, x: number, y: number, tiles: number, tileSize: number): void {
@@ -43,7 +43,9 @@ export function drawMinimap(ctx: CanvasRenderingContext2D, context: MinimapConte
                         ? '#cfe3ff'
                         : t === 'dungeon'
                           ? '#e6d7ff'
-                          : '#1a5b3c';
+                          : t === 'cave'
+                            ? '#ffd2a6'
+                            : '#1a5b3c';
 
       ctx.fillRect(x + mx * tileSize, y + my * tileSize, tileSize, tileSize);
     }
@@ -58,7 +60,7 @@ export function drawMinimap(ctx: CanvasRenderingContext2D, context: MinimapConte
     }
     const mx: number = dx + half;
     const my: number = dy + half;
-    ctx.fillStyle = p.kind === 'town' ? '#ffffff' : '#ffd36b';
+    ctx.fillStyle = p.kind === 'town' ? '#ffffff' : p.kind === 'cave' ? '#ffb971' : '#ffd36b';
     ctx.fillRect(x + mx * tileSize + 2, y + my * tileSize + 2, Math.max(2, tileSize - 4), Math.max(2, tileSize - 4));
   }
 

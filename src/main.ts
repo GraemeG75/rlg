@@ -3,13 +3,15 @@ import { Rng } from './core/rng';
 import { add, manhattan } from './core/util';
 import {
   Overworld,
+  caveBaseIdFromWorldPos,
+  caveSeedFromWorldPos,
   dungeonBaseIdFromWorldPos,
   dungeonLevelId,
   dungeonSeedFromWorldPos,
   townIdFromWorldPos,
   townSeedFromWorldPos
 } from './maps/overworld';
-import type { Dungeon, DungeonTheme } from './maps/dungeon';
+import type { Dungeon, DungeonLayout, DungeonTheme } from './maps/dungeon';
 import { generateDungeon, getDungeonTile, randomFloorPoint } from './maps/dungeon';
 import type { Town } from './maps/town';
 import { generateTown, getTownTile } from './maps/town';
@@ -30,6 +32,7 @@ type DungeonStackFrame = {
   baseId: string;
   depth: number;
   entranceWorldPos: Point;
+  layout: DungeonLayout;
 };
 
 type GameState = {
@@ -760,6 +763,7 @@ function applyStaticI18n(): void {
   supportTailEl.textContent = t('ui.support.tail');
   overworldHintEl.innerHTML = t('ui.overworld.hint', {
     dungeonKey: '<b>D</b>',
+    caveKey: '<b>C</b>',
     townKey: '<b>T</b>',
     roadKey: '<b>=</b>',
     mapKey: '<b>M</b>',
@@ -1008,17 +1012,20 @@ function getCurrentTown(s: GameState): Town | undefined {
   return s.towns.get(s.player.mapRef.townId);
 }
 
-function ensureDungeonLevel(s: GameState, baseId: string, depth: number, entranceWorldPos: Point): Dungeon {
+function ensureDungeonLevel(s: GameState, baseId: string, depth: number, entranceWorldPos: Point, layout: DungeonLayout): Dungeon {
   const levelId: string = dungeonLevelId(baseId, depth);
   const existing: Dungeon | undefined = s.dungeons.get(levelId);
   if (existing) {
     return existing;
   }
 
-  const baseSeed: number = dungeonSeedFromWorldPos(s.worldSeed, entranceWorldPos.x, entranceWorldPos.y);
+  const baseSeed: number =
+    layout === 'caves'
+      ? caveSeedFromWorldPos(s.worldSeed, entranceWorldPos.x, entranceWorldPos.y)
+      : dungeonSeedFromWorldPos(s.worldSeed, entranceWorldPos.x, entranceWorldPos.y);
   const levelSeed: number = (baseSeed ^ (depth * 0x9e3779b9)) | 0;
 
-  const dungeon: Dungeon = generateDungeon(levelId, baseId, depth, levelSeed, 80, 50);
+  const dungeon: Dungeon = generateDungeon(levelId, baseId, depth, levelSeed, 80, 50, layout);
 
   spawnMonstersInDungeon(s, dungeon, levelSeed);
   spawnLootInDungeon(s, dungeon, levelSeed);
@@ -1767,8 +1774,22 @@ function getActiveTownWorldPos(): Point | undefined {
   return undefined;
 }
 
+function getOverworldEntranceKind(): 'dungeon' | 'cave' | undefined {
+  if (state.mode !== 'overworld') {
+    return undefined;
+  }
+  const tile = state.overworld.getTile(state.player.pos.x, state.player.pos.y);
+  if (tile === 'dungeon') {
+    return 'dungeon';
+  }
+  if (tile === 'cave') {
+    return 'cave';
+  }
+  return undefined;
+}
+
 function isStandingOnDungeonEntrance(): boolean {
-  return state.mode === 'overworld' && state.overworld.getTile(state.player.pos.x, state.player.pos.y) === 'dungeon';
+  return getOverworldEntranceKind() !== undefined;
 }
 
 function removeDeadEntities(s: GameState): void {
@@ -1935,6 +1956,9 @@ function playerTurn(action: Action): boolean {
       if (tile === 'dungeon') {
         state.log.push(t('log.autoWalk.dungeonFound'));
       }
+      if (tile === 'cave') {
+        state.log.push(t('log.autoWalk.caveFound'));
+      }
       if (tile === 'town_gate') {
         state.log.push(t('log.autoWalk.townFound'));
       }
@@ -1954,8 +1978,9 @@ function playerTurn(action: Action): boolean {
 
   if (action.kind === 'use') {
     if (state.mode === 'overworld') {
-      if (isStandingOnDungeonEntrance()) {
-        enterDungeonAt(state.player.pos);
+      const entrance = getOverworldEntranceKind();
+      if (entrance) {
+        enterDungeonAt(state.player.pos, entrance);
         return true;
       }
       const tile = state.overworld.getTile(state.player.pos.x, state.player.pos.y);
@@ -2105,6 +2130,9 @@ function tryMovePlayer(dx: number, dy: number): boolean {
     const tile = state.overworld.getTile(next.x, next.y);
     if (tile === 'dungeon') {
       state.log.push(t('log.map.dungeonFound'));
+    }
+    if (tile === 'cave') {
+      state.log.push(t('log.map.caveFound'));
     }
     if (tile === 'town_gate') {
       state.log.push(t('log.map.townFound'));
@@ -2483,18 +2511,22 @@ function monstersTurn(): void {
   }
 }
 
-function enterDungeonAt(worldPos: Point): void {
-  const baseId: string = dungeonBaseIdFromWorldPos(state.worldSeed, worldPos.x, worldPos.y);
+function enterDungeonAt(worldPos: Point, entranceKind: 'dungeon' | 'cave'): void {
+  const layout: DungeonLayout = entranceKind === 'cave' ? 'caves' : 'rooms';
+  const baseId: string =
+    entranceKind === 'cave'
+      ? caveBaseIdFromWorldPos(state.worldSeed, worldPos.x, worldPos.y)
+      : dungeonBaseIdFromWorldPos(state.worldSeed, worldPos.x, worldPos.y);
   const depth: number = 0;
 
-  const dungeon: Dungeon = ensureDungeonLevel(state, baseId, depth, worldPos);
+  const dungeon: Dungeon = ensureDungeonLevel(state, baseId, depth, worldPos, layout);
 
-  state.dungeonStack = [{ baseId, depth, entranceWorldPos: { x: worldPos.x, y: worldPos.y } }];
+  state.dungeonStack = [{ baseId, depth, entranceWorldPos: { x: worldPos.x, y: worldPos.y }, layout }];
   state.mode = 'dungeon';
   state.player.mapRef = { kind: 'dungeon', dungeonId: dungeon.id };
   state.player.pos = { x: dungeon.stairsUp.x, y: dungeon.stairsUp.y };
 
-  state.log.push(t('log.enter.dungeon'));
+  state.log.push(entranceKind === 'cave' ? t('log.enter.cave') : t('log.enter.dungeon'));
   addStoryEvent(state, 'story.event.enterDungeon.title', 'story.event.enterDungeon.detail', { depth: 0 });
 }
 
@@ -2530,9 +2562,9 @@ function goDownLevel(): void {
   }
 
   const nextDepth: number = current.depth + 1;
-  const dungeon: Dungeon = ensureDungeonLevel(state, current.baseId, nextDepth, current.entranceWorldPos);
+  const dungeon: Dungeon = ensureDungeonLevel(state, current.baseId, nextDepth, current.entranceWorldPos, current.layout);
 
-  state.dungeonStack.push({ baseId: current.baseId, depth: nextDepth, entranceWorldPos: current.entranceWorldPos });
+  state.dungeonStack.push({ baseId: current.baseId, depth: nextDepth, entranceWorldPos: current.entranceWorldPos, layout: current.layout });
   state.player.mapRef = { kind: 'dungeon', dungeonId: dungeon.id };
   state.player.pos = { x: dungeon.stairsUp.x, y: dungeon.stairsUp.y };
   state.log.push(t('log.dungeon.descend', { depth: nextDepth, theme: t(`theme.${dungeon.theme}`) }));
@@ -2783,6 +2815,8 @@ function minimapColor(tile: string): string {
       return '#d9dfe6';
     case 'road':
       return '#8a6b44';
+    case 'cave':
+      return '#6a5a4a';
     case 'dungeon':
       return '#9b4a3a';
     case 'town':
@@ -3503,6 +3537,10 @@ function loadSaveFromModal(): void {
   }
 }
 
+function layoutFromBaseId(baseId: string): DungeonLayout {
+  return baseId.startsWith('cave_') ? 'caves' : 'rooms';
+}
+
 function rebuildDungeonStackFromPlayer(data: SaveDataV3, player: Entity): DungeonStackFrame[] {
   const mapRef = player.mapRef;
   if (mapRef.kind !== 'dungeon') {
@@ -3515,8 +3553,9 @@ function rebuildDungeonStackFromPlayer(data: SaveDataV3, player: Entity): Dungeo
 
   const entranceWorldPos: Point = data.entranceReturnPos ?? { x: 0, y: 0 };
   const frames: DungeonStackFrame[] = [];
+  const layout: DungeonLayout = layoutFromBaseId(dungeon.baseId);
   for (let depth: number = 0; depth <= dungeon.depth; depth++) {
-    frames.push({ baseId: dungeon.baseId, depth, entranceWorldPos });
+    frames.push({ baseId: dungeon.baseId, depth, entranceWorldPos, layout });
   }
   return frames;
 }

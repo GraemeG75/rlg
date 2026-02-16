@@ -214,6 +214,8 @@ function overworldChar(tile: string): string {
       return 'A';
     case 'dungeon':
       return 'D';
+    case 'cave':
+      return 'C';
     case 'town':
     case 'town_square':
       return 'T';

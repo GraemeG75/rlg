@@ -8,7 +8,12 @@ export type OverworldNavOptions = {
   maxNodes: number;
 };
 
-export function findNearestOverworldTile(overworld: Overworld, from: Point, wanted: 'town' | 'dungeon', maxRadius: number): Point | undefined {
+export function findNearestOverworldTile(
+  overworld: Overworld,
+  from: Point,
+  wanted: 'town' | 'dungeon' | 'cave',
+  maxRadius: number
+): Point | undefined {
   for (let radius: number = 1; radius <= maxRadius; radius++) {
     for (let dx: number = -radius; dx <= radius; dx++) {
       const dy: number = radius - Math.abs(dx);
@@ -62,7 +67,7 @@ export function findOverworldPath(overworld: Overworld, from: Point, to: Point, 
     if (tile === 'water' || tile === 'water_deep') {
       return 9999;
     }
-    // towns/dungeons should be reachable, treat like grass
+    // towns/dungeons/caves should be reachable, treat like grass
     return 1.0;
   };
 

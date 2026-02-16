@@ -3,6 +3,8 @@ import type { DungeonTile, Point, TileVisibility } from '../core/types';
 
 export type DungeonTheme = 'crypt' | 'caves' | 'ruins';
 
+export type DungeonLayout = 'rooms' | 'caves';
+
 export type Dungeon = {
   id: string;
   baseId: string;
@@ -44,7 +46,19 @@ export function setVisibility(dungeon: Dungeon, x: number, y: number, v: TileVis
   dungeon.visibility[idx(x, y, dungeon.width)] = v;
 }
 
-export function generateDungeon(dungeonId: string, baseId: string, depth: number, seed: number, width: number, height: number): Dungeon {
+export function generateDungeon(
+  dungeonId: string,
+  baseId: string,
+  depth: number,
+  seed: number,
+  width: number,
+  height: number,
+  layout: DungeonLayout = 'rooms'
+): Dungeon {
+  if (layout === 'caves') {
+    return generateCaveDungeon(dungeonId, baseId, depth, seed, width, height);
+  }
+
   const rng: Rng = new Rng(seed);
 
   const tiles: DungeonTile[] = new Array<DungeonTile>(width * height).fill('wall');
@@ -141,6 +155,83 @@ export function generateDungeon(dungeonId: string, baseId: string, depth: number
   const theme: DungeonTheme = pickTheme(depth);
 
   return { id: dungeonId, baseId, depth, theme, width, height, tiles, visibility, stairsUp, stairsDown, bossRoom };
+}
+
+function generateCaveDungeon(dungeonId: string, baseId: string, depth: number, seed: number, width: number, height: number): Dungeon {
+  const rng: Rng = new Rng(seed ^ 0x6d2b79f5);
+
+  const tiles: DungeonTile[] = new Array<DungeonTile>(width * height).fill('wall');
+  const visibility: TileVisibility[] = new Array<TileVisibility>(width * height).fill('unseen');
+
+  for (let y: number = 1; y < height - 1; y++) {
+    for (let x: number = 1; x < width - 1; x++) {
+      tiles[idx(x, y, width)] = rng.nextInt(0, 100) < 45 ? 'wall' : 'floor';
+    }
+  }
+
+  for (let i: number = 0; i < 4; i += 1) {
+    const next: DungeonTile[] = tiles.slice();
+    for (let y: number = 1; y < height - 1; y++) {
+      for (let x: number = 1; x < width - 1; x++) {
+        let walls: number = 0;
+        for (let oy: number = -1; oy <= 1; oy++) {
+          for (let ox: number = -1; ox <= 1; ox++) {
+            if (ox === 0 && oy === 0) {
+              continue;
+            }
+            if (tiles[idx(x + ox, y + oy, width)] === 'wall') {
+              walls += 1;
+            }
+          }
+        }
+        next[idx(x, y, width)] = walls >= 5 ? 'wall' : 'floor';
+      }
+    }
+    for (let y: number = 1; y < height - 1; y++) {
+      for (let x: number = 1; x < width - 1; x++) {
+        tiles[idx(x, y, width)] = next[idx(x, y, width)];
+      }
+    }
+  }
+
+  let floors: Point[] = [];
+  for (let y: number = 1; y < height - 1; y++) {
+    for (let x: number = 1; x < width - 1; x++) {
+      if (tiles[idx(x, y, width)] === 'floor') {
+        floors.push({ x, y });
+      }
+    }
+  }
+
+  if (floors.length === 0) {
+    const cx: number = Math.floor(width / 2);
+    const cy: number = Math.floor(height / 2);
+    for (let y: number = cy - 2; y <= cy + 2; y++) {
+      for (let x: number = cx - 2; x <= cx + 2; x++) {
+        tiles[idx(x, y, width)] = 'floor';
+        floors.push({ x, y });
+      }
+    }
+  }
+
+  const stairsUp: Point = floors[rng.nextInt(0, floors.length)];
+  let stairsDown: Point = stairsUp;
+  for (let i: number = 0; i < 60; i += 1) {
+    const candidate: Point = floors[rng.nextInt(0, floors.length)];
+    const dist: number = Math.abs(candidate.x - stairsUp.x) + Math.abs(candidate.y - stairsUp.y);
+    if (dist > Math.max(6, Math.floor((width + height) * 0.2))) {
+      stairsDown = candidate;
+      break;
+    }
+    stairsDown = candidate;
+  }
+
+  tiles[idx(stairsUp.x, stairsUp.y, width)] = 'stairsUp';
+  tiles[idx(stairsDown.x, stairsDown.y, width)] = 'stairsDown';
+
+  const theme: DungeonTheme = 'caves';
+
+  return { id: dungeonId, baseId, depth, theme, width, height, tiles, visibility, stairsUp, stairsDown, bossRoom: undefined };
 }
 
 export function randomFloorPoint(dungeon: Dungeon, seed: number): Point {

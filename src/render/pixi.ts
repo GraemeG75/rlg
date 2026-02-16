@@ -721,6 +721,29 @@ export class PixiRenderer {
         ctx.fillStyle = 'rgba(255, 255, 255, 0.25)';
         ctx.fillRect(w * 0.25, h * 0.15, w * 0.5, h * 0.15);
       }
+    } else if (tile === 'cave') {
+      ctx.fillStyle = 'rgba(0, 0, 0, 0.7)';
+      ctx.beginPath();
+      ctx.ellipse(w * 0.5, h * 0.6, w * 0.16, h * 0.12, 0, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.fillStyle = 'rgba(0, 0, 0, 0.95)';
+      ctx.beginPath();
+      ctx.ellipse(w * 0.5, h * 0.62, w * 0.1, h * 0.08, 0, 0, Math.PI * 2);
+      ctx.fill();
+      // Cutout wedge to imply a bite from the cliff face
+      ctx.fillStyle = 'rgba(0, 0, 0, 0.9)';
+      ctx.beginPath();
+      ctx.moveTo(w * 0.5, h * 0.32);
+      ctx.lineTo(w * 0.72, h * 0.5);
+      ctx.lineTo(w * 0.5, h * 0.68);
+      ctx.lineTo(w * 0.28, h * 0.5);
+      ctx.closePath();
+      ctx.fill();
+      // Shadow spill on the lower edge
+      ctx.fillStyle = 'rgba(0, 0, 0, 0.22)';
+      ctx.fillRect(w * 0.22, h * 0.7, w * 0.56, h * 0.08);
+      ctx.fillStyle = 'rgba(255, 255, 255, 0.18)';
+      ctx.fillRect(w * 0.32, h * 0.36, w * 0.36, h * 0.06);
     }
 
     ctx.restore();
@@ -741,6 +764,8 @@ export class PixiRenderer {
           return { base: '#b9c2cd', edge: '#dde3ea' };
         case 'road':
           return { base: '#4f5359', edge: '#6b727a' };
+        case 'cave':
+          return { base: '#2a2c2f', edge: '#3b3f45' };
         case 'town_ground':
           return { base: '#2f2720', edge: '#3f352b' };
         case 'town_road':
@@ -1313,6 +1338,8 @@ export class PixiRenderer {
         return 'ow_town';
       case 'dungeon':
         return 'ow_dungeon';
+      case 'cave':
+        return 'ow_cave';
       default:
         return 'ow_grass';
     }

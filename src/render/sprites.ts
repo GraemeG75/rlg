@@ -17,6 +17,7 @@ export type SpriteKey =
   | 'ow_town_wall'
   | 'ow_town_gate'
   | 'ow_dungeon'
+  | 'ow_cave'
   | 'tn_floor'
   | 'tn_wall'
   | 'tn_road'
@@ -141,6 +142,10 @@ export class SpriteAtlas {
     this.sprites.set(
       'ow_dungeon',
       this.make((c) => this.patternDungeonEntrance(c))
+    );
+    this.sprites.set(
+      'ow_cave',
+      this.make((c) => this.patternCaveEntrance(c))
     );
 
     // Town interior
@@ -471,6 +476,20 @@ export class SpriteAtlas {
     ctx.fillRect(6, 10, 4, 2);
     ctx.fillStyle = '#0b0a08';
     ctx.fillRect(7, 12, 2, 1);
+  }
+
+  private patternCaveEntrance(ctx: CanvasRenderingContext2D): void {
+    this.fill(ctx, '#3a3f46', '#555b63');
+    ctx.fillStyle = '#0b0b0b';
+    ctx.beginPath();
+    ctx.ellipse(8, 10, 5, 3, 0, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.fillStyle = '#000000';
+    ctx.beginPath();
+    ctx.ellipse(8, 11, 3, 2, 0, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.fillStyle = '#9a9082';
+    ctx.fillRect(4, 6, 8, 1);
   }
 
   private patternStone(ctx: CanvasRenderingContext2D, base: string, highlight: string): void {

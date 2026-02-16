@@ -1,12 +1,15 @@
 import { hash2D } from '../core/hash';
-import type { OverworldTile } from '../core/types';
+import type { OverworldTile, Point } from '../core/types';
 
 const TERRAIN_SALT: number = 0x51a1c0de;
 const FOREST_SALT: number = 0x1f2e3d4c;
 const ROAD_SALT: number = 0x7f4a7c2d;
 const POI_SALT: number = 0x35c3a1b5;
+const CAVE_SALT: number = 0x2d7bb3a9;
 const DUNGEON_ID_SALT: number = 0x6a09e667;
 const DUNGEON_SEED_SALT: number = 0xbb67ae85;
+const CAVE_ID_SALT: number = 0x2f7c3f5b;
+const CAVE_SEED_SALT: number = 0x8d2a4d19;
 const TOWN_ID_SALT: number = 0x3c6ef372;
 const TOWN_SEED_SALT: number = 0x9b05688c;
 
@@ -23,6 +26,8 @@ const FOREST_SECONDARY_WEIGHT: number = 0.45;
 const FOREST_DENSITY: number = 0.52;
 const ROAD_NOISE_FREQ: number = 18;
 const ROAD_BAND_WIDTH: number = 0.03;
+const CAVE_PERIOD: number = 1024;
+const CAVE_SPAWN_THRESHOLD: number = 4;
 const POI_PERIOD: number = 2048;
 const DUNGEON_SPAWN_THRESHOLD: number = 3;
 const TOWN_RADIUS: number = 4;
@@ -50,8 +55,18 @@ export class Overworld {
       }
     }
 
-    // Points of interest override base terrain but only spawn on walkable tiles.
+    // Caves appear along mountain edges on walkable tiles.
     if (tile !== 'water' && tile !== 'water_deep' && tile !== 'mountain' && tile !== 'mountain_snow') {
+      if (this.isMountainAdjacent(x, y)) {
+        const caveNoise: number = this.sampleFine(CAVE_SALT, x, y) % CAVE_PERIOD;
+        if (caveNoise < CAVE_SPAWN_THRESHOLD) {
+          tile = 'cave';
+        }
+      }
+    }
+
+    // Points of interest override base terrain but only spawn on walkable tiles.
+    if (tile !== 'water' && tile !== 'water_deep' && tile !== 'mountain' && tile !== 'mountain_snow' && tile !== 'cave') {
       const poiNoise: number = this.sampleFine(POI_SALT, x, y) % POI_PERIOD;
       if (poiNoise < DUNGEON_SPAWN_THRESHOLD) {
         tile = 'dungeon';
@@ -84,7 +99,7 @@ export class Overworld {
     if (tile === 'town_square') {
       return 1.1;
     }
-    if (tile === 'grass' || tile === 'town' || tile === 'town_ground' || tile === 'dungeon') {
+    if (tile === 'grass' || tile === 'town' || tile === 'town_ground' || tile === 'dungeon' || tile === 'cave') {
       return 1.4;
     }
     if (tile === 'forest') {
@@ -116,6 +131,23 @@ export class Overworld {
     }
     const forestValue: number = this.sampleOctave(FOREST_SALT, x, y, FOREST_PRIMARY_FREQ, FOREST_SECONDARY_FREQ, FOREST_SECONDARY_WEIGHT);
     return forestValue < FOREST_DENSITY ? 'forest' : 'grass';
+  }
+
+  private isMountainAdjacent(x: number, y: number): boolean {
+    const neighbors: Point[] = [
+      { x: x + 1, y },
+      { x: x - 1, y },
+      { x, y: y + 1 },
+      { x, y: y - 1 }
+    ];
+
+    for (const n of neighbors) {
+      const base: OverworldTile = this.baseTerrainAt(n.x, n.y);
+      if (base === 'mountain' || base === 'mountain_snow') {
+        return true;
+      }
+    }
+    return false;
   }
 
   private findTownCenter(x: number, y: number): { x: number; y: number } | undefined {
@@ -273,6 +305,14 @@ export function dungeonLevelId(baseId: string, depth: number): string {
 
 export function dungeonSeedFromWorldPos(worldSeed: number, x: number, y: number): number {
   return hash2D((worldSeed ^ DUNGEON_SEED_SALT) | 0, x, y);
+}
+
+export function caveBaseIdFromWorldPos(worldSeed: number, x: number, y: number): string {
+  return formatId('cave', worldSeed, x, y, CAVE_ID_SALT);
+}
+
+export function caveSeedFromWorldPos(worldSeed: number, x: number, y: number): number {
+  return hash2D((worldSeed ^ CAVE_SEED_SALT) | 0, x, y);
 }
 
 export function townIdFromWorldPos(worldSeed: number, x: number, y: number): string {

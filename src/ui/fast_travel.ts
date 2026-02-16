@@ -16,7 +16,8 @@ export function renderFastTravelHtml(pois: DiscoveredPoi[], onlyTowns: boolean):
   }
 
   for (const p of list) {
-    const badge: string = p.kind === 'town' ? t('fastTravel.badge.town') : t('fastTravel.badge.dungeon');
+    const badge: string =
+      p.kind === 'town' ? t('fastTravel.badge.town') : p.kind === 'cave' ? t('fastTravel.badge.cave') : t('fastTravel.badge.dungeon');
     lines.push(
       `<div class="row" style="justify-content:space-between; align-items:center;">` +
         `<div class="small"><b>${escapeHtml(p.name)}</b> <span class="muted">(${p.pos.x}, ${p.pos.y})</span> <span class="tag">${badge}</span></div>` +
