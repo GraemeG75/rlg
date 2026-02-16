@@ -1,8 +1,8 @@
 export type Point = { x: number; y: number };
 
-export type Mode = 'overworld' | 'dungeon';
+export type Mode = 'overworld' | 'dungeon' | 'town';
 
-export type MapRef = { kind: 'overworld' } | { kind: 'dungeon'; dungeonId: string };
+export type MapRef = { kind: 'overworld' } | { kind: 'dungeon'; dungeonId: string } | { kind: 'town'; townId: string };
 
 export type CharacterClass = 'warrior' | 'mage' | 'rogue';
 
@@ -40,6 +40,8 @@ export type Entity = {
   agility?: number;
   intellect?: number;
   statusEffects?: StatusEffect[];
+  specialCooldown?: number;
+  isBoss?: boolean;
 };
 
 export type GearRarity = 'common' | 'uncommon' | 'rare' | 'epic' | 'legendary';
@@ -101,8 +103,26 @@ export type Action =
   | { kind: 'save' }
   | { kind: 'load' };
 
-export type OverworldTile = 'water' | 'grass' | 'forest' | 'mountain' | 'dungeon' | 'town' | 'road';
-export type DungeonTile = 'wall' | 'floor' | 'stairsUp' | 'stairsDown';
+export type OverworldTile =
+  | 'water'
+  | 'grass'
+  | 'forest'
+  | 'mountain'
+  | 'dungeon'
+  | 'town'
+  | 'town_ground'
+  | 'town_road'
+  | 'town_square'
+  | 'town_gate'
+  | 'town_wall'
+  | 'town_shop'
+  | 'town_tavern'
+  | 'town_smith'
+  | 'town_house'
+  | 'road';
+
+export type TownTile = 'wall' | 'floor' | 'road' | 'square' | 'gate' | 'shop' | 'tavern' | 'smith' | 'house';
+export type DungeonTile = 'wall' | 'floor' | 'bossFloor' | 'stairsUp' | 'stairsDown';
 
 export type TileVisibility = 'unseen' | 'seen' | 'visible';
 
@@ -114,7 +134,7 @@ export type StatusEffect = {
   potency: number;
 };
 
-export type QuestKind = 'killMonsters' | 'slayMonster' | 'reachDepth';
+export type QuestKind = 'killMonsters' | 'slayMonster' | 'reachDepth' | 'slayBoss';
 
 export type Quest = {
   id: string;

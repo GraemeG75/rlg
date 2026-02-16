@@ -1,11 +1,20 @@
 import type { Action, CharacterClass, Entity, GearRarity, Item, Mode, Point, Shop } from './core/types';
 import { Rng } from './core/rng';
 import { add, manhattan } from './core/util';
-import { Overworld, dungeonBaseIdFromWorldPos, dungeonLevelId, dungeonSeedFromWorldPos, townIdFromWorldPos } from './maps/overworld';
-import type { Dungeon } from './maps/dungeon';
+import {
+  Overworld,
+  dungeonBaseIdFromWorldPos,
+  dungeonLevelId,
+  dungeonSeedFromWorldPos,
+  townIdFromWorldPos,
+  townSeedFromWorldPos
+} from './maps/overworld';
+import type { Dungeon, DungeonTheme } from './maps/dungeon';
 import { generateDungeon, getDungeonTile, randomFloorPoint } from './maps/dungeon';
+import type { Town } from './maps/town';
+import { generateTown, getTownTile } from './maps/town';
 import { computeDungeonFov, decayVisibilityToSeen } from './systems/fov';
-import { canEnterDungeonTile, canEnterOverworldTile, isBlockedByEntity } from './systems/rules';
+import { canEnterDungeonTile, canEnterOverworldTile, canEnterTownTile, isBlockedByEntity } from './systems/rules';
 import { nextMonsterStep } from './systems/ai';
 import { PixiRenderer } from './render/pixi';
 import { MessageLog } from './ui/log';
@@ -33,6 +42,9 @@ type GameState = {
 
   dungeons: Map<string, Dungeon>;
   dungeonStack: DungeonStackFrame[];
+  towns: Map<string, Town>;
+  currentTownId?: string;
+  townReturnPos?: Point;
 
   player: Entity;
   playerClass: CharacterClass;
@@ -681,6 +693,9 @@ function newGame(worldSeed: number, classChoice: CharacterClass): GameState {
     overworld,
     dungeons: new Map<string, Dungeon>(),
     dungeonStack: [],
+    towns: new Map<string, Town>(),
+    currentTownId: undefined,
+    townReturnPos: undefined,
     player,
     playerClass: classChoice,
     entities: [player],
@@ -747,6 +762,13 @@ function getCurrentDungeon(s: GameState): Dungeon | undefined {
   return s.dungeons.get(s.player.mapRef.dungeonId);
 }
 
+function getCurrentTown(s: GameState): Town | undefined {
+  if (s.player.mapRef.kind !== 'town') {
+    return undefined;
+  }
+  return s.towns.get(s.player.mapRef.townId);
+}
+
 function ensureDungeonLevel(s: GameState, baseId: string, depth: number, entranceWorldPos: Point): Dungeon {
   const levelId: string = dungeonLevelId(baseId, depth);
   const existing: Dungeon | undefined = s.dungeons.get(levelId);
@@ -761,10 +783,26 @@ function ensureDungeonLevel(s: GameState, baseId: string, depth: number, entranc
 
   spawnMonstersInDungeon(s, dungeon, levelSeed);
   spawnLootInDungeon(s, dungeon, levelSeed);
+  spawnBossInDungeon(s, dungeon, levelSeed);
 
   s.dungeons.set(levelId, dungeon);
   return dungeon;
 }
+
+function ensureTownInterior(s: GameState, townCenter: Point): Town {
+  const townId: string = townIdFromWorldPos(s.worldSeed, townCenter.x, townCenter.y);
+  const existing: Town | undefined = s.towns.get(townId);
+  if (existing) {
+    return existing;
+  }
+
+  const seed: number = townSeedFromWorldPos(s.worldSeed, townCenter.x, townCenter.y);
+  const town: Town = generateTown(townId, seed);
+  s.towns.set(townId, town);
+  return town;
+}
+
+const BOSS_MIN_DEPTH: number = 3;
 
 function spawnMonstersInDungeon(s: GameState, dungeon: Dungeon, seed: number): void {
   const monsterCount: number = 5 + Math.min(12, dungeon.depth * 2);
@@ -782,7 +820,7 @@ function spawnMonstersInDungeon(s: GameState, dungeon: Dungeon, seed: number): v
 
 function createMonsterForDepth(depth: number, roll: number, rng: Rng, dungeonId: string, i: number, p: Point): Entity {
   // Slime: weak, Orc: tougher, Goblin: baseline
-  if (roll < 35) {
+  if (roll < 30) {
     return {
       id: `m_${dungeonId}_${i}`,
       kind: 'monster',
@@ -802,7 +840,7 @@ function createMonsterForDepth(depth: number, roll: number, rng: Rng, dungeonId:
     };
   }
 
-  if (roll < 75) {
+  if (roll < 60) {
     return {
       id: `m_${dungeonId}_${i}`,
       kind: 'monster',
@@ -819,6 +857,28 @@ function createMonsterForDepth(depth: number, roll: number, rng: Rng, dungeonId:
       gold: 0,
       inventory: [],
       equipment: {}
+    };
+  }
+
+  if (depth >= 2 && roll < 82) {
+    return {
+      id: `m_${dungeonId}_${i}`,
+      kind: 'monster',
+      name: 'Wraith',
+      glyph: 'w',
+      pos: p,
+      mapRef: { kind: 'dungeon', dungeonId },
+      hp: 7 + depth * 2,
+      maxHp: 7 + depth * 2,
+      baseAttack: 2 + depth,
+      baseDefense: Math.floor(depth / 3),
+      level: 1,
+      xp: 0,
+      gold: 0,
+      inventory: [],
+      equipment: {},
+      statusEffects: [],
+      specialCooldown: 0
     };
   }
 
@@ -840,6 +900,63 @@ function createMonsterForDepth(depth: number, roll: number, rng: Rng, dungeonId:
     equipment: {},
     statusEffects: []
   };
+}
+
+function bossNameForTheme(theme: DungeonTheme): string {
+  switch (theme) {
+    case 'caves':
+      return 'Cave Broodlord';
+    case 'crypt':
+      return 'Crypt Lich';
+    case 'ruins':
+    default:
+      return 'Ruin Warden';
+  }
+}
+
+function bossNameForDepth(depth: number): string {
+  if (depth < 3) {
+    return 'Ruin Warden';
+  }
+  if (depth < 6) {
+    return 'Cave Broodlord';
+  }
+  return 'Crypt Lich';
+}
+
+function spawnBossInDungeon(s: GameState, dungeon: Dungeon, seed: number): void {
+  if (dungeon.depth < BOSS_MIN_DEPTH) {
+    return;
+  }
+  if (s.entities.some((e) => e.isBoss && e.mapRef.kind === 'dungeon' && e.mapRef.dungeonId === dungeon.id)) {
+    return;
+  }
+
+  const rng: Rng = new Rng(seed ^ 0xb055);
+  const p: Point = dungeon.bossRoom ? dungeon.bossRoom.center : randomFloorPoint(dungeon, seed + 7000);
+  const name: string = bossNameForTheme(dungeon.theme);
+  const hp: number = 24 + dungeon.depth * 7;
+  const boss: Entity = {
+    id: `boss_${dungeon.id}`,
+    kind: 'monster',
+    name,
+    glyph: 'B',
+    pos: p,
+    mapRef: { kind: 'dungeon', dungeonId: dungeon.id },
+    hp,
+    maxHp: hp,
+    baseAttack: 5 + dungeon.depth * 2,
+    baseDefense: 2 + Math.floor(dungeon.depth / 2),
+    level: 1,
+    xp: 0,
+    gold: 0,
+    inventory: [],
+    equipment: {},
+    statusEffects: [],
+    isBoss: true
+  };
+
+  s.entities.push(boss);
 }
 
 function spawnLootInDungeon(s: GameState, dungeon: Dungeon, seed: number): void {
@@ -880,18 +997,26 @@ function spawnLootInDungeon(s: GameState, dungeon: Dungeon, seed: number): void 
 }
 
 function getActiveTownId(): string | undefined {
+  if (state.mode === 'town') {
+    return state.currentTownId;
+  }
   if (state.mode !== 'overworld') {
     return undefined;
   }
   const t = state.overworld.getTile(state.player.pos.x, state.player.pos.y);
-  if (t !== 'town') {
+  if (t !== 'town' && !t.startsWith('town_')) {
     return undefined;
   }
-  return townIdFromWorldPos(state.worldSeed, state.player.pos.x, state.player.pos.y);
+  const center: Point | undefined = state.overworld.getTownCenter(state.player.pos.x, state.player.pos.y);
+  if (!center) {
+    return townIdFromWorldPos(state.worldSeed, state.player.pos.x, state.player.pos.y);
+  }
+  return townIdFromWorldPos(state.worldSeed, center.x, center.y);
 }
 
 function ensureQuestForTown(s: GameState, townPos: Point): void {
-  const townId: string = townIdFromWorldPos(s.worldSeed, townPos.x, townPos.y);
+  const center: Point = s.overworld.getTownCenter(townPos.x, townPos.y) ?? townPos;
+  const townId: string = townIdFromWorldPos(s.worldSeed, center.x, center.y);
 
   // If we already have quests for this town, do nothing.
   if (s.quests.some((q) => q.townId === townId)) {
@@ -899,7 +1024,7 @@ function ensureQuestForTown(s: GameState, townPos: Point): void {
   }
 
   // Generate 1-2 quests deterministically from seed + town coords.
-  const seed: number = hash2D(s.worldSeed, townPos.x, townPos.y) ^ 0xa11ce;
+  const seed: number = hash2D(s.worldSeed, center.x, center.y) ^ 0xa11ce;
   const rng: Rng = new Rng(seed);
 
   const questCount: number = 1 + rng.nextInt(0, 2);
@@ -938,7 +1063,8 @@ function ensureQuestForTown(s: GameState, townPos: Point): void {
       const targetCount: number = 4 + rng.nextInt(0, 6);
       const rewardGold: number = 22 + minDepth * 12 + rng.nextInt(0, 12);
       const rewardXp: number = 20 + minDepth * 9 + rng.nextInt(0, 10);
-      const targetMonster: string = monsterPool[rng.nextInt(0, monsterPool.length)];
+      const targetPool: string[] = minDepth >= 2 ? [...monsterPool, 'Wraith'] : monsterPool;
+      const targetMonster: string = targetPool[rng.nextInt(0, targetPool.length)];
       const targetLabel: string = targetMonster.endsWith('s') ? targetMonster : `${targetMonster}s`;
 
       const q: import('./core/types').Quest = {
@@ -962,25 +1088,51 @@ function ensureQuestForTown(s: GameState, townPos: Point): void {
       continue;
     }
 
-    const targetDepth: number = 2 + rng.nextInt(0, 5);
-    const rewardGold: number = 25 + targetDepth * 12 + rng.nextInt(0, 12);
-    const rewardXp: number = 22 + targetDepth * 10 + rng.nextInt(0, 10);
+    if (questRoll < 95) {
+      const targetDepth: number = 2 + rng.nextInt(0, 5);
+      const rewardGold: number = 25 + targetDepth * 12 + rng.nextInt(0, 12);
+      const rewardXp: number = 22 + targetDepth * 10 + rng.nextInt(0, 10);
+      const q: import('./core/types').Quest = {
+        id: `q_${townId}_${i}`,
+        townId,
+        kind: 'reachDepth',
+        description: `Descend to depth ${targetDepth}.`,
+        targetCount: targetDepth,
+        currentCount: 0,
+        targetDepth,
+        minDungeonDepth: 0,
+        rewardGold,
+        rewardXp,
+        completed: false,
+        turnedIn: false
+      };
+
+      q.rewardItemIds = maybeCreateQuestRewards(s, rng, q.id, targetDepth + 1);
+
+      s.quests.push(q);
+      continue;
+    }
+
+    const bossDepth: number = Math.max(BOSS_MIN_DEPTH, 3 + rng.nextInt(0, 4));
+    const bossName: string = bossNameForDepth(bossDepth);
+    const rewardGold: number = 40 + bossDepth * 14 + rng.nextInt(0, 16);
+    const rewardXp: number = 35 + bossDepth * 12 + rng.nextInt(0, 12);
     const q: import('./core/types').Quest = {
       id: `q_${townId}_${i}`,
       townId,
-      kind: 'reachDepth',
-      description: `Descend to depth ${targetDepth}.`,
-      targetCount: targetDepth,
+      kind: 'slayBoss',
+      description: `Slay the ${bossName} (depth ≥ ${bossDepth}).`,
+      targetCount: 1,
       currentCount: 0,
-      targetDepth,
-      minDungeonDepth: 0,
+      targetMonster: bossName,
+      minDungeonDepth: bossDepth,
       rewardGold,
       rewardXp,
       completed: false,
       turnedIn: false
     };
 
-    q.rewardItemIds = maybeCreateQuestRewards(s, rng, q.id, targetDepth + 1);
+    q.rewardItemIds = createBossQuestRewards(s, rng, q.id, bossDepth + 2, bossName);
 
     s.quests.push(q);
   }
@@ -1001,6 +1153,64 @@ function maybeCreateQuestRewards(s: GameState, rng: Rng, questId: string, power:
   const firstId: string = createQuestRewardItem(s, rng, questId, power, 'a', firstType);
   const secondId: string = createQuestRewardItem(s, rng, questId, power, 'b', secondType);
   return [firstId, secondId];
+}
+
+function createBossQuestRewards(s: GameState, rng: Rng, questId: string, power: number, bossName: string): string[] {
+  const weaponId: string = `${questId}_reward_boss_w`;
+  if (!s.items.some((it) => it.id === weaponId)) {
+    const item: Item = createBossRelicItem(rng, weaponId, 'weapon', power, bossName);
+    s.items.push(item);
+  }
+
+  const armorId: string = `${questId}_reward_boss_a`;
+  if (!s.items.some((it) => it.id === armorId)) {
+    const item: Item = createBossRelicItem(rng, armorId, 'armor', power, bossName);
+    s.items.push(item);
+  }
+
+  return [weaponId, armorId];
+}
+
+function createBossRelicItem(rng: Rng, id: string, slot: 'weapon' | 'armor', power: number, bossName: string): Item {
+  if (slot === 'weapon') {
+    const item: Item = generateWeaponLoot(id, Math.max(1, power), rng);
+    item.rarity = 'legendary';
+    item.attackBonus = (item.attackBonus ?? 0) + 3;
+    item.value = Math.round(item.value * 2.4);
+    item.name = `${bossName} Relic Blade`;
+    return item;
+  }
+
+  const item: Item = generateArmorLoot(id, Math.max(1, power), rng);
+  item.rarity = 'legendary';
+  item.defenseBonus = (item.defenseBonus ?? 0) + 2;
+  item.value = Math.round(item.value * 2.4);
+  item.name = `${bossName} Relic Aegis`;
+  return item;
+}
+
+function dropBossLoot(s: GameState, boss: Entity): void {
+  if (!boss.isBoss || boss.mapRef.kind !== 'dungeon') {
+    return;
+  }
+  const dungeon: Dungeon | undefined = s.dungeons.get(boss.mapRef.dungeonId);
+  if (!dungeon) {
+    return;
+  }
+
+  const id: string = `boss_${dungeon.id}_loot`;
+  if (s.items.some((it) => it.id === id)) {
+    return;
+  }
+
+  const seed: number = hash2D(s.worldSeed ^ dungeon.depth, boss.pos.x, boss.pos.y) ^ 0xb055;
+  const rng: Rng = new Rng(seed);
+  const slot: 'weapon' | 'armor' = rng.nextInt(0, 2) === 0 ? 'weapon' : 'armor';
+  const item: Item = createBossRelicItem(rng, id, slot, dungeon.depth + 4, boss.name);
+  item.mapRef = { kind: 'dungeon', dungeonId: dungeon.id };
+  item.pos = { x: boss.pos.x, y: boss.pos.y };
+  s.items.push(item);
+  s.log.push(`${boss.name} drops ${item.name}.`);
 }
 
 function pickQuestRewardType(rng: Rng): string {
@@ -1048,9 +1258,9 @@ function createQuestRewardItem(s: GameState, rng: Rng, questId: string, power: n
   return id;
 }
 
-function recordKillForQuests(s: GameState, dungeonDepth: number, monsterName: string): void {
+function recordKillForQuests(s: GameState, dungeonDepth: number, monsterName: string, isBoss: boolean): void {
   for (const q of s.quests) {
-    if (q.kind !== 'killMonsters' && q.kind !== 'slayMonster') {
+    if (q.kind !== 'killMonsters' && q.kind !== 'slayMonster' && q.kind !== 'slayBoss') {
       continue;
     }
     if (q.completed || q.turnedIn) {
@@ -1061,6 +1271,14 @@ function recordKillForQuests(s: GameState, dungeonDepth: number, monsterName: st
     }
     if (q.kind === 'slayMonster' && q.targetMonster && q.targetMonster !== monsterName) {
       continue;
+    }
+    if (q.kind === 'slayBoss') {
+      if (!isBoss) {
+        continue;
+      }
+      if (q.targetMonster && q.targetMonster !== monsterName) {
+        continue;
+      }
     }
 
     q.currentCount += 1;
@@ -1200,14 +1418,15 @@ function addClassGearToShop(s: GameState, shopId: string, stock: string[], tier:
 }
 
 function ensureShopForTown(s: GameState, townPos: Point): Shop {
-  const shopId: string = townIdFromWorldPos(s.worldSeed, townPos.x, townPos.y);
+  const center: Point = s.overworld.getTownCenter(townPos.x, townPos.y) ?? townPos;
+  const shopId: string = townIdFromWorldPos(s.worldSeed, center.x, center.y);
   const existing: Shop | undefined = s.shops.get(shopId);
   if (existing) {
     return existing;
   }
 
   const stock: string[] = [];
-  const seed: number = hash2D(s.worldSeed, townPos.x, townPos.y);
+  const seed: number = hash2D(s.worldSeed, center.x, center.y);
   const rng: Rng = new Rng(seed ^ 0xc0ffee);
 
   // Generate 10 stock items that persist per town.
@@ -1234,13 +1453,46 @@ function ensureShopForTown(s: GameState, townPos: Point): Shop {
 
   addClassGearToShop(s, shopId, stock, 0, rng);
 
-  const created: Shop = { id: shopId, townWorldPos: { x: townPos.x, y: townPos.y }, stockItemIds: stock };
+  const created: Shop = { id: shopId, townWorldPos: { x: center.x, y: center.y }, stockItemIds: stock };
   s.shops.set(shopId, created);
   return created;
 }
 
 function isStandingOnTown(): boolean {
-  return state.mode === 'overworld' && state.overworld.getTile(state.player.pos.x, state.player.pos.y) === 'town';
+  return state.mode === 'town';
+}
+
+function getTownTileAtPlayer(): import('./core/types').TownTile | undefined {
+  if (state.mode !== 'town') {
+    return undefined;
+  }
+  const town: Town | undefined = getCurrentTown(state);
+  if (!town) {
+    return undefined;
+  }
+  return getTownTile(town, state.player.pos.x, state.player.pos.y);
+}
+
+function canOpenShopHere(): boolean {
+  return state.mode === 'town' && getTownTileAtPlayer() === 'shop';
+}
+
+function canOpenQuestHere(): boolean {
+  return state.mode === 'town' && getTownTileAtPlayer() === 'tavern';
+}
+
+function getActiveTownWorldPos(): Point | undefined {
+  if (state.mode === 'town') {
+    return state.townReturnPos;
+  }
+  if (state.mode !== 'overworld') {
+    return undefined;
+  }
+  const t = state.overworld.getTile(state.player.pos.x, state.player.pos.y);
+  if (t === 'town' || t.startsWith('town_')) {
+    return { x: state.player.pos.x, y: state.player.pos.y };
+  }
+  return undefined;
 }
 
 function isStandingOnDungeonEntrance(): boolean {
@@ -1274,11 +1526,22 @@ function handleAction(action: Action): void {
   }
 
   if (action.kind === 'toggleShop') {
-    state.activePanel = state.activePanel === 'shop' ? 'none' : 'shop';
-    if (state.activePanel === 'shop' && isStandingOnTown()) {
-      ensureShopForTown(state, state.player.pos);
-      ensureQuestForTown(state, state.player.pos);
-      const shopNow: Shop = ensureShopForTown(state, state.player.pos);
+    if (state.activePanel === 'shop') {
+      state.activePanel = 'none';
+      render();
+      return;
+    }
+    if (!canOpenShopHere()) {
+      state.log.push('Find the shop building to trade.');
+      render();
+      return;
+    }
+    state.activePanel = 'shop';
+    const townPos: Point | undefined = getActiveTownWorldPos();
+    if (townPos) {
+      ensureShopForTown(state, townPos);
+      ensureQuestForTown(state, townPos);
+      const shopNow: Shop = ensureShopForTown(state, townPos);
       maybeRestockShop(state, shopNow);
     }
     render();
@@ -1311,10 +1574,21 @@ function handleAction(action: Action): void {
   }
 
   if (action.kind === 'toggleQuest') {
-    state.activePanel = state.activePanel === 'quest' ? 'none' : 'quest';
-    if (state.activePanel === 'quest' && isStandingOnTown()) {
-      ensureQuestForTown(state, state.player.pos);
-      const shopNow: Shop = ensureShopForTown(state, state.player.pos);
+    if (state.activePanel === 'quest') {
+      state.activePanel = 'none';
+      render();
+      return;
+    }
+    if (!canOpenQuestHere()) {
+      state.log.push('Visit the tavern to check bounties.');
+      render();
+      return;
+    }
+    state.activePanel = 'quest';
+    const townPos: Point | undefined = getActiveTownWorldPos();
+    if (townPos) {
+      ensureQuestForTown(state, townPos);
+      const shopNow: Shop = ensureShopForTown(state, townPos);
       maybeRestockShop(state, shopNow);
     }
     render();
@@ -1336,7 +1610,7 @@ function handleAction(action: Action): void {
 
   if (action.kind === 'help') {
     state.log.push(
-      'Keys: WASD/Arrows move • Shift+Move run (overworld) • M map • Enter use • I inventory • B shop (town) • Q quests (town) • G pick up • R renderer • F FOV • P save • O load.'
+      'Keys: WASD/Arrows move • Shift+Move run (overworld) • M map • Enter use • I inventory • B shop (shop) • Q quests (tavern) • G pick up • R renderer • F FOV • P save • O load.'
     );
     render();
     return;
@@ -1395,8 +1669,8 @@ function playerTurn(action: Action): boolean {
       if (t === 'dungeon') {
         state.log.push('Dungeon entrance found. Press Enter to enter.');
       }
-      if (t === 'town') {
-        state.log.push('Town found. Press Enter then B/Q.');
+      if (t === 'town_gate') {
+        state.log.push('Town gate found. Press Enter to enter.');
       }
 
       return true;
@@ -1418,13 +1692,14 @@ function playerTurn(action: Action): boolean {
         enterDungeonAt(state.player.pos);
         return true;
       }
-      if (isStandingOnTown()) {
-        state.log.push("You're in town. Press B to open the shop.");
+      const t = state.overworld.getTile(state.player.pos.x, state.player.pos.y);
+      if (t === 'town_gate') {
+        enterTownAt(state.player.pos);
         return true;
       }
       state.log.push('Nothing to use here.');
       return false;
-    } else {
+    } else if (state.mode === 'dungeon') {
       const dungeon: Dungeon | undefined = getCurrentDungeon(state);
       if (!dungeon) {
         return false;
@@ -1441,6 +1716,13 @@ function playerTurn(action: Action): boolean {
       }
 
       state.log.push('Nothing to use here.');
+      return false;
+    } else {
+      const town: Town | undefined = getCurrentTown(state);
+      if (!town) {
+        return false;
+      }
+      state.log.push('Find the town gate to leave.');
       return false;
     }
   }
@@ -1492,7 +1774,7 @@ function tryMovePlayer(dx: number, dy: number): boolean {
       return false;
     }
 
-    const blocker: Entity | undefined = isBlockedByEntity(state.entities, 'dungeon', dungeon.id, target);
+    const blocker: Entity | undefined = isBlockedByEntity(state.entities, 'dungeon', dungeon.id, undefined, target);
     if (blocker && blocker.kind === 'monster') {
       attack(state.player, blocker);
       return true;
@@ -1503,6 +1785,30 @@ function tryMovePlayer(dx: number, dy: number): boolean {
     }
 
     state.player.pos = target;
+    return true;
+  }
+
+  if (state.mode === 'town') {
+    const town: Town | undefined = getCurrentTown(state);
+    if (!town) {
+      return false;
+    }
+
+    const blocker: Entity | undefined = isBlockedByEntity(state.entities, 'town', undefined, town.id, target);
+    if (blocker && blocker.kind === 'monster') {
+      attack(state.player, blocker);
+      return true;
+    }
+
+    if (!canEnterTownTile(town, target)) {
+      return false;
+    }
+
+    state.player.pos = target;
+    if (getTownTile(town, target.x, target.y) === 'gate') {
+      state.log.push('You pass through the town gate.');
+      exitTownToOverworld();
+    }
     return true;
   }
 
@@ -1529,8 +1835,8 @@ function tryMovePlayer(dx: number, dy: number): boolean {
     if (t === 'dungeon') {
       state.log.push('Dungeon entrance found. Press Enter to enter.');
     }
-    if (t === 'town') {
-      state.log.push('Town found. Press Enter then B/Q.');
+    if (t === 'town_gate') {
+      state.log.push('Town gate found. Press Enter to enter.');
     }
   }
 
@@ -1750,7 +2056,10 @@ function attack(attacker: Entity, defender: Entity): void {
         awardXp(xp);
 
         const currentDepth: number = state.dungeonStack[state.dungeonStack.length - 1]?.depth ?? 0;
-        recordKillForQuests(state, currentDepth, attacker.name);
+        if (attacker.isBoss) {
+          dropBossLoot(state, attacker);
+        }
+        recordKillForQuests(state, currentDepth, attacker.name, !!attacker.isBoss);
       }
     }
   }
@@ -1780,8 +2089,31 @@ function attack(attacker: Entity, defender: Entity): void {
       awardXp(xp);
 
       const currentDepth: number = state.dungeonStack[state.dungeonStack.length - 1]?.depth ?? 0;
-      recordKillForQuests(state, currentDepth, defender.name);
+      if (defender.isBoss) {
+        dropBossLoot(state, defender);
+      }
+      recordKillForQuests(state, currentDepth, defender.name, !!defender.isBoss);
     }
+  }
+}
+
+function wraithDrain(attacker: Entity, defender: Entity): void {
+  const def: number = defender.baseDefense + getEquippedDefenseBonus(defender);
+  const base: number = 2 + Math.floor(attacker.baseAttack / 2) + state.rng.nextInt(0, 3);
+  const dmg: number = Math.max(1, base - Math.floor(def * 0.3));
+  defender.hp -= dmg;
+
+  const heal: number = Math.min(attacker.maxHp - attacker.hp, Math.floor(dmg * 0.6));
+  if (heal > 0) {
+    attacker.hp += heal;
+  }
+
+  const defenderHpText: string = `(${Math.max(0, defender.hp)}/${defender.maxHp})`;
+  const healText: string = heal > 0 ? ` Wraith heals ${heal}.` : '';
+  state.log.push(`Wraith drains you for ${dmg}. ${defenderHpText}${healText}`);
+
+  if (defender.hp <= 0) {
+    state.log.push('You fall. Darkness closes in.');
   }
 }
 
@@ -1816,7 +2148,15 @@ function monstersTurn(): void {
       continue;
     }
 
+    if (e.glyph === 'w') {
+      const cd: number = e.specialCooldown ?? 0;
+      if (cd > 0) {
+        e.specialCooldown = cd - 1;
+      }
+    }
+
     const dist: number = manhattan(e.pos, state.player.pos);
+    const chaseOk: boolean = !state.useFov || (visible ? visible.has(`${e.pos.x},${e.pos.y}`) : true);
     if (dist <= 1) {
       const hpBefore: number = state.player.hp;
       attack(e, state.player);
@@ -1826,14 +2166,18 @@ function monstersTurn(): void {
       continue;
     }
 
-    const chaseOk: boolean = !state.useFov || (visible ? visible.has(`${e.pos.x},${e.pos.y}`) : true);
+    if (e.glyph === 'w' && (e.specialCooldown ?? 0) === 0 && dist <= 4 && chaseOk && state.rng.nextInt(0, 100) < 20) {
+      wraithDrain(e, state.player);
+      e.specialCooldown = 3;
+      continue;
+    }
     if (dist <= 12 && chaseOk) {
       const next: Point | undefined = nextMonsterStep(e, state.player, dungeon, state.entities);
       if (!next) {
         continue;
       }
 
-      const blocked: Entity | undefined = isBlockedByEntity(state.entities, 'dungeon', dungeon.id, next);
+      const blocked: Entity | undefined = isBlockedByEntity(state.entities, 'dungeon', dungeon.id, undefined, next);
       if (blocked) {
         continue;
       }
@@ -1857,6 +2201,29 @@ function enterDungeonAt(worldPos: Point): void {
   state.player.pos = { x: dungeon.stairsUp.x, y: dungeon.stairsUp.y };
 
   state.log.push('You enter the dungeon.');
+}
+
+function enterTownAt(worldPos: Point): void {
+  const center: Point = state.overworld.getTownCenter(worldPos.x, worldPos.y) ?? worldPos;
+  const town: Town = ensureTownInterior(state, center);
+  state.mode = 'town';
+  state.currentTownId = town.id;
+  state.townReturnPos = { x: worldPos.x, y: worldPos.y };
+  state.destination = undefined;
+  state.autoPath = undefined;
+  state.player.mapRef = { kind: 'town', townId: town.id };
+  state.player.pos = { x: town.entrance.x, y: town.entrance.y };
+  state.log.push('You enter the town.');
+}
+
+function exitTownToOverworld(): void {
+  const returnPos: Point = state.townReturnPos ?? { x: 0, y: 0 };
+  state.mode = 'overworld';
+  state.player.mapRef = { kind: 'overworld' };
+  state.player.pos = { x: returnPos.x, y: returnPos.y };
+  state.currentTownId = undefined;
+  state.townReturnPos = undefined;
+  state.log.push('You return to the overworld.');
 }
 
 function goDownLevel(): void {
@@ -1935,11 +2302,14 @@ function syncRendererUi(): void {
 
 function render(): void {
   const dungeon: Dungeon | undefined = getCurrentDungeon(state);
+  const town: Town | undefined = getCurrentTown(state);
 
   modePill.textContent =
     state.mode === 'overworld'
       ? 'Mode: overworld'
-      : `Mode: dungeon (depth ${state.dungeonStack[state.dungeonStack.length - 1]?.depth ?? 0} • ${dungeon?.theme ?? '?'})`;
+      : state.mode === 'town'
+        ? 'Mode: town'
+        : `Mode: dungeon (depth ${state.dungeonStack[state.dungeonStack.length - 1]?.depth ?? 0} • ${dungeon?.theme ?? '?'})`;
 
   renderPill.textContent = `Renderer: PixiJS • FOV: ${state.useFov ? 'on' : 'off'}`;
 
@@ -1964,9 +2334,12 @@ function render(): void {
     <div class="kv small"><div class="muted">Status ${(state.player.statusEffects ?? []).map((e) => e.kind + ':' + e.remainingTurns).join(', ') || 'none'}</div><div class="muted">Seed ${state.worldSeed}</div></div>
   `;
 
-  const activeShop: Shop | undefined = isStandingOnTown() ? ensureShopForTown(state, state.player.pos) : undefined;
+  const townPos: Point | undefined = getActiveTownWorldPos();
+  const activeShop: Shop | undefined = townPos ? ensureShopForTown(state, townPos) : undefined;
   if (activeShop) {
-    ensureQuestForTown(state, state.player.pos);
+    if (townPos) {
+      ensureQuestForTown(state, townPos);
+    }
     maybeRestockShop(state, activeShop);
   }
   const shopPricing = activeShop ? buildShopPricing(state, activeShop) : undefined;
@@ -2019,6 +2392,7 @@ function render(): void {
       mode: state.mode,
       overworld: state.overworld,
       dungeon,
+      town,
       player: state.player,
       entities: state.entities,
       items: state.items,
@@ -2190,8 +2564,8 @@ function dropItem(itemId: string): void {
 }
 
 function buyItem(itemId: string): void {
-  if (!isStandingOnTown()) {
-    state.log.push('You need to be in town to buy.');
+  if (!canOpenShopHere()) {
+    state.log.push('You need to be at the shop to buy.');
     return;
   }
   const it: Item | undefined = state.items.find((x) => x.id === itemId);
@@ -2199,7 +2573,8 @@ function buyItem(itemId: string): void {
     return;
   }
 
-  const activeShop: Shop | undefined = isStandingOnTown() ? ensureShopForTown(state, state.player.pos) : undefined;
+  const townPos: Point | undefined = getActiveTownWorldPos();
+  const activeShop: Shop | undefined = townPos ? ensureShopForTown(state, townPos) : undefined;
   if (!activeShop) {
     return;
   }
@@ -2216,8 +2591,8 @@ function buyItem(itemId: string): void {
 }
 
 function sellItem(itemId: string): void {
-  if (!isStandingOnTown()) {
-    state.log.push('You need to be in town to sell.');
+  if (!canOpenShopHere()) {
+    state.log.push('You need to be at the shop to sell.');
     return;
   }
   const it: Item | undefined = state.items.find((x) => x.id === itemId);
@@ -2228,7 +2603,8 @@ function sellItem(itemId: string): void {
     return;
   }
 
-  const activeShop: Shop | undefined = isStandingOnTown() ? ensureShopForTown(state, state.player.pos) : undefined;
+  const townPos: Point | undefined = getActiveTownWorldPos();
+  const activeShop: Shop | undefined = townPos ? ensureShopForTown(state, townPos) : undefined;
   if (!activeShop) {
     return;
   }
@@ -2546,6 +2922,8 @@ function buildSaveData(): SaveDataV3 {
     dungeons,
     shops,
     entranceReturnPos: state.dungeonStack[0]?.entranceWorldPos,
+    townReturnPos: state.townReturnPos,
+    townId: state.currentTownId,
     activePanel: state.activePanel,
     turnCounter: state.turnCounter,
     quests: state.quests
@@ -2561,12 +2939,23 @@ function doSave(): void {
 function applyLoadedSave(data: SaveDataV3): boolean {
   const rng: Rng = new Rng(data.worldSeed);
   const overworld: Overworld = new Overworld(data.worldSeed);
+  const resolvedMode: Mode = data.mode === 'town' && (!data.townId || !data.townReturnPos) ? 'overworld' : data.mode;
 
   const dungeonsMap: Map<string, Dungeon> = new Map<string, Dungeon>();
   for (const d of data.dungeons) dungeonsMap.set(d.id, d);
 
   const shopsMap: Map<string, Shop> = new Map<string, Shop>();
   for (const s of data.shops) shopsMap.set(s.id, s);
+
+  const townsMap: Map<string, Town> = new Map<string, Town>();
+  if (resolvedMode === 'town' && data.townId && data.townReturnPos) {
+    const center: Point | undefined = overworld.getTownCenter(data.townReturnPos.x, data.townReturnPos.y);
+    if (center) {
+      const seed: number = townSeedFromWorldPos(data.worldSeed, center.x, center.y);
+      const town: Town = generateTown(data.townId, seed);
+      townsMap.set(data.townId, town);
+    }
+  }
 
   const player: Entity | undefined = data.entities.find((e) => e.id === data.playerId);
   if (player && !player.statusEffects) {
@@ -2583,10 +2972,13 @@ function applyLoadedSave(data: SaveDataV3): boolean {
   state = {
     worldSeed: data.worldSeed,
     rng,
-    mode: data.mode,
+    mode: resolvedMode,
     overworld,
     dungeons: dungeonsMap,
     dungeonStack: rebuildDungeonStackFromPlayer(data, player),
+    towns: townsMap,
+    currentTownId: resolvedMode === 'town' ? data.townId : undefined,
+    townReturnPos: resolvedMode === 'town' ? data.townReturnPos : undefined,
     player,
     playerClass: loadedClass,
     entities: data.entities,
@@ -2598,8 +2990,19 @@ function applyLoadedSave(data: SaveDataV3): boolean {
     shopCategory: 'all',
     turnCounter: data.turnCounter ?? 0,
     quests: data.quests ?? [],
+    mapOpen: false,
+    mapCursor: { x: 0, y: 0 },
+    destination: undefined,
+    autoPath: undefined,
     log: new MessageLog(160)
   };
+
+  if (resolvedMode === 'overworld' && player.mapRef.kind === 'town') {
+    player.mapRef = { kind: 'overworld' };
+  }
+  if (resolvedMode === 'town' && data.townId && player.mapRef.kind !== 'town') {
+    player.mapRef = { kind: 'town', townId: data.townId };
+  }
 
   ensureStartingGear(state, loadedClass);
   pendingClass = loadedClass;

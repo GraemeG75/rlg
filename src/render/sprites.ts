@@ -5,20 +5,43 @@ export type SpriteKey =
   | 'ow_mountain'
   | 'ow_road'
   | 'ow_town'
+  | 'ow_town_ground'
+  | 'ow_town_road'
+  | 'ow_town_square'
+  | 'ow_town_shop'
+  | 'ow_town_tavern'
+  | 'ow_town_smith'
+  | 'ow_town_house'
+  | 'ow_town_wall'
+  | 'ow_town_gate'
   | 'ow_dungeon'
+  | 'tn_floor'
+  | 'tn_wall'
+  | 'tn_road'
+  | 'tn_square'
+  | 'tn_gate'
+  | 'tn_shop'
+  | 'tn_tavern'
+  | 'tn_smith'
+  | 'tn_house'
   | 'dg_wall_ruins'
   | 'dg_floor_ruins'
+  | 'dg_boss_floor_ruins'
   | 'dg_stairs_ruins'
   | 'dg_wall_caves'
   | 'dg_floor_caves'
+  | 'dg_boss_floor_caves'
   | 'dg_stairs_caves'
   | 'dg_wall_crypt'
   | 'dg_floor_crypt'
+  | 'dg_boss_floor_crypt'
   | 'dg_stairs_crypt'
   | 'ent_player'
   | 'ent_slime'
   | 'ent_goblin'
   | 'ent_orc'
+  | 'ent_wraith'
+  | 'ent_boss'
   | 'it_potion'
   | 'it_weapon'
   | 'it_armor'
@@ -70,8 +93,82 @@ export class SpriteAtlas {
       this.make((c) => this.patternTown(c))
     );
     this.sprites.set(
+      'ow_town_ground',
+      this.make((c) => this.patternTownGround(c))
+    );
+    this.sprites.set(
+      'ow_town_road',
+      this.make((c) => this.patternTownRoad(c))
+    );
+    this.sprites.set(
+      'ow_town_square',
+      this.make((c) => this.patternTownSquare(c))
+    );
+    this.sprites.set(
+      'ow_town_shop',
+      this.make((c) => this.patternTownBuilding(c, '#e7d2b2', '#3a2a1d'))
+    );
+    this.sprites.set(
+      'ow_town_tavern',
+      this.make((c) => this.patternTownBuilding(c, '#d9c19f', '#2b1f16'))
+    );
+    this.sprites.set(
+      'ow_town_smith',
+      this.make((c) => this.patternTownBuilding(c, '#cdb59a', '#2b2b33'))
+    );
+    this.sprites.set(
+      'ow_town_house',
+      this.make((c) => this.patternTownBuilding(c, '#dcc9ad', '#43332a'))
+    );
+    this.sprites.set(
+      'ow_town_wall',
+      this.make((c) => this.patternTownWall(c))
+    );
+    this.sprites.set(
+      'ow_town_gate',
+      this.make((c) => this.patternTownGate(c))
+    );
+    this.sprites.set(
       'ow_dungeon',
       this.make((c) => this.patternDungeonEntrance(c))
+    );
+
+    // Town interior
+    this.sprites.set(
+      'tn_floor',
+      this.make((c) => this.patternTownInteriorFloor(c))
+    );
+    this.sprites.set(
+      'tn_wall',
+      this.make((c) => this.patternTownInteriorWall(c))
+    );
+    this.sprites.set(
+      'tn_road',
+      this.make((c) => this.patternTownInteriorRoad(c))
+    );
+    this.sprites.set(
+      'tn_square',
+      this.make((c) => this.patternTownInteriorSquare(c))
+    );
+    this.sprites.set(
+      'tn_gate',
+      this.make((c) => this.patternTownInteriorGate(c))
+    );
+    this.sprites.set(
+      'tn_shop',
+      this.make((c) => this.patternTownInteriorBuilding(c, '#d9c1a3', '#2b1f16'))
+    );
+    this.sprites.set(
+      'tn_tavern',
+      this.make((c) => this.patternTownInteriorBuilding(c, '#cfb592', '#3a2a1d'))
+    );
+    this.sprites.set(
+      'tn_smith',
+      this.make((c) => this.patternTownInteriorBuilding(c, '#c3b6a9', '#1f232b'))
+    );
+    this.sprites.set(
+      'tn_house',
+      this.make((c) => this.patternTownInteriorBuilding(c, '#dcc9ad', '#3f2e25'))
     );
 
     // Dungeon themes
@@ -82,6 +179,10 @@ export class SpriteAtlas {
     this.sprites.set(
       'dg_floor_ruins',
       this.make((c) => this.patternFloor(c, '#0f141a', '#1c262f'))
+    );
+    this.sprites.set(
+      'dg_boss_floor_ruins',
+      this.make((c) => this.patternBossFloor(c, '#0f141a', '#1c262f', '#b38d4f'))
     );
     this.sprites.set(
       'dg_stairs_ruins',
@@ -97,6 +198,10 @@ export class SpriteAtlas {
       this.make((c) => this.patternFloor(c, '#0f1510', '#1b241a'))
     );
     this.sprites.set(
+      'dg_boss_floor_caves',
+      this.make((c) => this.patternBossFloor(c, '#0f1510', '#1b241a', '#7fa974'))
+    );
+    this.sprites.set(
       'dg_stairs_caves',
       this.make((c) => this.patternStairs(c, '#17301a', '#cfe3ff'))
     );
@@ -108,6 +213,10 @@ export class SpriteAtlas {
     this.sprites.set(
       'dg_floor_crypt',
       this.make((c) => this.patternFloor(c, '#170d19', '#231526'))
+    );
+    this.sprites.set(
+      'dg_boss_floor_crypt',
+      this.make((c) => this.patternBossFloor(c, '#170d19', '#231526', '#b07bd6'))
     );
     this.sprites.set(
       'dg_stairs_crypt',
@@ -130,6 +239,14 @@ export class SpriteAtlas {
     this.sprites.set(
       'ent_orc',
       this.make((c) => this.glyph(c, 'O', '#d59b6a'))
+    );
+    this.sprites.set(
+      'ent_wraith',
+      this.make((c) => this.glyph(c, 'w', '#7cc8f2'))
+    );
+    this.sprites.set(
+      'ent_boss',
+      this.make((c) => this.glyph(c, 'B', '#f28b6a'))
     );
 
     this.sprites.set(
@@ -218,6 +335,98 @@ export class SpriteAtlas {
     ctx.fillRect(7, 10, 2, 3);
   }
 
+  private patternTownGround(ctx: CanvasRenderingContext2D): void {
+    this.fill(ctx, '#2f2720', '#3f352b');
+  }
+
+  private patternTownRoad(ctx: CanvasRenderingContext2D): void {
+    this.fill(ctx, '#3a2f25', '#4a3b2e');
+    ctx.fillStyle = '#c8b08a';
+    for (let i: number = 2; i < this.tileSize - 2; i += 4) {
+      ctx.fillRect(i, 6, 2, 2);
+      ctx.fillRect(i + 1, 10, 2, 2);
+    }
+  }
+
+  private patternTownSquare(ctx: CanvasRenderingContext2D): void {
+    this.fill(ctx, '#3d332a', '#4f4134');
+    ctx.strokeStyle = '#d5c1a5';
+    ctx.strokeRect(3, 3, 10, 10);
+    ctx.fillStyle = '#c9b08e';
+    ctx.fillRect(7, 7, 2, 2);
+  }
+
+  private patternTownBuilding(ctx: CanvasRenderingContext2D, wall: string, roof: string): void {
+    this.fill(ctx, '#2f2720', '#3f352b');
+    ctx.fillStyle = wall;
+    ctx.fillRect(3, 7, 10, 6);
+    ctx.fillStyle = roof;
+    ctx.fillRect(4, 4, 8, 4);
+    ctx.fillStyle = '#1a1410';
+    ctx.fillRect(7, 9, 2, 4);
+  }
+
+  private patternTownWall(ctx: CanvasRenderingContext2D): void {
+    this.fill(ctx, '#232a34', '#343f4d');
+    ctx.fillStyle = '#47556b';
+    ctx.fillRect(2, 6, 12, 4);
+  }
+
+  private patternTownGate(ctx: CanvasRenderingContext2D): void {
+    this.fill(ctx, '#232a34', '#343f4d');
+    ctx.fillStyle = '#b89a74';
+    ctx.fillRect(6, 6, 4, 8);
+    ctx.fillStyle = '#1a1410';
+    ctx.fillRect(7, 8, 2, 4);
+  }
+
+  private patternTownInteriorFloor(ctx: CanvasRenderingContext2D): void {
+    this.fill(ctx, '#1d1a16', '#2b241d');
+    ctx.fillStyle = '#3a3026';
+    ctx.fillRect(6, 5, 1, 1);
+    ctx.fillRect(10, 11, 1, 1);
+  }
+
+  private patternTownInteriorWall(ctx: CanvasRenderingContext2D): void {
+    this.fill(ctx, '#2a2430', '#3a3242');
+    ctx.fillStyle = '#4a4256';
+    ctx.fillRect(2, 6, 12, 4);
+  }
+
+  private patternTownInteriorRoad(ctx: CanvasRenderingContext2D): void {
+    this.fill(ctx, '#2b241d', '#3a2f25');
+    ctx.fillStyle = '#a88f73';
+    for (let i: number = 2; i < this.tileSize - 2; i += 4) {
+      ctx.fillRect(i, 7, 2, 2);
+    }
+  }
+
+  private patternTownInteriorSquare(ctx: CanvasRenderingContext2D): void {
+    this.fill(ctx, '#2f2924', '#3d352f');
+    ctx.strokeStyle = '#cdb89a';
+    ctx.strokeRect(3, 3, 10, 10);
+    ctx.fillStyle = '#b9a186';
+    ctx.fillRect(7, 7, 2, 2);
+  }
+
+  private patternTownInteriorGate(ctx: CanvasRenderingContext2D): void {
+    this.fill(ctx, '#2a2430', '#3a3242');
+    ctx.fillStyle = '#b08d65';
+    ctx.fillRect(6, 6, 4, 8);
+    ctx.fillStyle = '#1a1410';
+    ctx.fillRect(7, 8, 2, 4);
+  }
+
+  private patternTownInteriorBuilding(ctx: CanvasRenderingContext2D, wall: string, roof: string): void {
+    this.fill(ctx, '#1d1a16', '#2b241d');
+    ctx.fillStyle = wall;
+    ctx.fillRect(3, 7, 10, 6);
+    ctx.fillStyle = roof;
+    ctx.fillRect(4, 4, 8, 4);
+    ctx.fillStyle = '#1a1410';
+    ctx.fillRect(7, 9, 2, 4);
+  }
+
   private patternDungeonEntrance(ctx: CanvasRenderingContext2D): void {
     this.fill(ctx, '#4b2f1f', '#5d3a24');
     ctx.fillStyle = '#f0d9b8';
@@ -231,6 +440,21 @@ export class SpriteAtlas {
     ctx.fillStyle = highlight;
     ctx.fillRect(2, 3, 5, 2);
     ctx.fillRect(8, 9, 6, 2);
+  }
+
+  private patternBossFloor(ctx: CanvasRenderingContext2D, base: string, highlight: string, rune: string): void {
+    this.patternFloor(ctx, base, highlight);
+    ctx.strokeStyle = rune;
+    ctx.lineWidth = 1;
+    ctx.beginPath();
+    ctx.moveTo(8, 2);
+    ctx.lineTo(13, 8);
+    ctx.lineTo(8, 14);
+    ctx.lineTo(3, 8);
+    ctx.closePath();
+    ctx.stroke();
+    ctx.fillStyle = rune;
+    ctx.fillRect(7, 7, 2, 2);
   }
 
   private patternFloor(ctx: CanvasRenderingContext2D, base: string, highlight: string): void {

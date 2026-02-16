@@ -6,7 +6,7 @@ export const SAVE_KEY: string = 'web-roguelike-starter-save-v3';
 export type SaveDataV3 = {
   version: 3;
   worldSeed: number;
-  mode: 'overworld' | 'dungeon';
+  mode: 'overworld' | 'dungeon' | 'town';
 
   playerId: string;
   playerClass?: import('./types').CharacterClass;
@@ -17,6 +17,8 @@ export type SaveDataV3 = {
 
   // For reconstructing dungeon stack and town context.
   entranceReturnPos?: { x: number; y: number };
+  townReturnPos?: { x: number; y: number };
+  townId?: string;
   shops: Shop[];
 
   // Progression

@@ -2,13 +2,16 @@ import { Application, Container, Sprite, Texture, TilingSprite } from 'pixi.js';
 import type { Entity, Item, Mode } from '../core/types';
 import type { Overworld } from '../maps/overworld';
 import type { Dungeon, DungeonTheme } from '../maps/dungeon';
+import type { Town } from '../maps/town';
 import { getDungeonTile, getVisibility } from '../maps/dungeon';
+import { getTownTile } from '../maps/town';
 import { SpriteAtlas, type SpriteKey } from './sprites';
 
 type PixiRenderContext = {
   mode: Mode;
   overworld: Overworld;
   dungeon: Dungeon | undefined;
+  town: Town | undefined;
   player: Entity;
   entities: Entity[];
   items: Item[];
@@ -27,9 +30,19 @@ export class PixiRenderer {
   private vignetteTexture?: Texture;
   private fogSprite?: TilingSprite;
   private fogTexture?: Texture;
+  private cloudFarSprite?: TilingSprite;
+  private cloudFarTexture?: Texture;
+  private cloudSprite?: TilingSprite;
+  private cloudTexture?: Texture;
   private fogOffsetX: number;
   private fogOffsetY: number;
   private lastFogTime: number;
+  private cloudFarOffsetX: number;
+  private cloudFarOffsetY: number;
+  private lastCloudFarTime: number;
+  private cloudOffsetX: number;
+  private cloudOffsetY: number;
+  private lastCloudTime: number;
   private readonly textures: Map<SpriteKey | string, Texture>;
   private readonly tileSize: number;
   private readonly canvas: HTMLCanvasElement;
@@ -51,6 +64,12 @@ export class PixiRenderer {
     this.fogOffsetX = 0;
     this.fogOffsetY = 0;
     this.lastFogTime = performance.now();
+    this.cloudFarOffsetX = 0;
+    this.cloudFarOffsetY = 0;
+    this.lastCloudFarTime = performance.now();
+    this.cloudOffsetX = 0;
+    this.cloudOffsetY = 0;
+    this.lastCloudTime = performance.now();
 
     this.app = new Application();
     this.ready = this.app
@@ -123,7 +142,7 @@ export class PixiRenderer {
           sprite.texture = this.getTexture(this.overworldKey(tile));
           sprite.alpha = 1;
           sprite.visible = true;
-        } else {
+        } else if (ctx.mode === 'dungeon') {
           if (!dungeon) {
             sprite.visible = false;
             continue;
@@ -163,6 +182,20 @@ export class PixiRenderer {
               alpha: tileAlpha * lightFactor
             });
           }
+        } else {
+          const town: Town | undefined = ctx.town;
+          if (!town) {
+            sprite.visible = false;
+            continue;
+          }
+          if (wx < 0 || wy < 0 || wx >= town.width || wy >= town.height) {
+            sprite.visible = false;
+            continue;
+          }
+          const tile = getTownTile(town, wx, wy);
+          sprite.texture = this.getTexture(this.townKey(tile));
+          sprite.alpha = 1;
+          sprite.visible = true;
         }
       }
     }
@@ -178,7 +211,15 @@ export class PixiRenderer {
     if (this.fogSprite) {
       this.fogSprite.visible = ctx.mode === 'dungeon';
     }
+    if (this.cloudFarSprite) {
+      this.cloudFarSprite.visible = ctx.mode === 'overworld';
+    }
+    if (this.cloudSprite) {
+      this.cloudSprite.visible = ctx.mode === 'overworld';
+    }
     this.updateFogDrift();
+    this.updateCloudFarDrift();
+    this.updateCloudDrift();
 
     if (this.vignetteSprite) {
       this.vignetteSprite.alpha = ctx.mode === 'dungeon' ? 0.75 : 0.45;
@@ -214,6 +255,7 @@ export class PixiRenderer {
     this.tileLayer.removeChildren();
 
     this.updateFog(widthPx, heightPx);
+    this.updateClouds(widthPx, heightPx);
     this.updateVignette(widthPx, heightPx);
 
     for (let row: number = 0; row < viewHeight; row++) {
@@ -241,7 +283,7 @@ export class PixiRenderer {
         if (it.mapRef.kind !== 'overworld') {
           continue;
         }
-      } else {
+      } else if (ctx.mode === 'dungeon') {
         const dungeon: Dungeon | undefined = ctx.dungeon;
         if (!dungeon) {
           continue;
@@ -254,6 +296,14 @@ export class PixiRenderer {
           if (vis !== 'visible') {
             continue;
           }
+        }
+      } else {
+        const town: Town | undefined = ctx.town;
+        if (!town) {
+          continue;
+        }
+        if (it.mapRef.kind !== 'town' || it.mapRef.townId !== town.id) {
+          continue;
         }
       }
 
@@ -294,7 +344,7 @@ export class PixiRenderer {
         if (entity.mapRef.kind !== 'overworld') {
           continue;
         }
-      } else {
+      } else if (ctx.mode === 'dungeon') {
         const dungeon: Dungeon | undefined = ctx.dungeon;
         if (!dungeon) {
           continue;
@@ -307,6 +357,14 @@ export class PixiRenderer {
           if (vis !== 'visible') {
             continue;
           }
+        }
+      } else {
+        const town: Town | undefined = ctx.town;
+        if (!town) {
+          continue;
+        }
+        if (entity.mapRef.kind !== 'town' || entity.mapRef.townId !== town.id) {
+          continue;
         }
       }
 
@@ -395,6 +453,78 @@ export class PixiRenderer {
     }
   }
 
+  private updateClouds(widthPx: number, heightPx: number): void {
+    if (this.cloudFarTexture) {
+      this.cloudFarTexture.destroy(true);
+    }
+    if (this.cloudTexture) {
+      this.cloudTexture.destroy(true);
+    }
+
+    const farCanvas: HTMLCanvasElement = document.createElement('canvas');
+    farCanvas.width = 128;
+    farCanvas.height = 128;
+    const farCtx: CanvasRenderingContext2D | null = farCanvas.getContext('2d');
+    if (!farCtx) {
+      return;
+    }
+
+    farCtx.clearRect(0, 0, farCanvas.width, farCanvas.height);
+    for (let i: number = 0; i < 34; i += 1) {
+      const x: number = (i * 31) % farCanvas.width;
+      const y: number = (i * 47) % farCanvas.height;
+      const r: number = 14 + (i % 4) * 4;
+      farCtx.fillStyle = `rgba(255, 255, 255, ${0.04 + (i % 3) * 0.015})`;
+      farCtx.beginPath();
+      farCtx.ellipse(x, y, r * 1.4, r * 0.9, 0, 0, Math.PI * 2);
+      farCtx.fill();
+    }
+
+    const canvas: HTMLCanvasElement = document.createElement('canvas');
+    canvas.width = 96;
+    canvas.height = 96;
+    const ctx: CanvasRenderingContext2D | null = canvas.getContext('2d');
+    if (!ctx) {
+      return;
+    }
+
+    ctx.clearRect(0, 0, canvas.width, canvas.height);
+    for (let i: number = 0; i < 30; i += 1) {
+      const x: number = (i * 19) % canvas.width;
+      const y: number = (i * 29) % canvas.height;
+      const r: number = 10 + (i % 5) * 3;
+      ctx.fillStyle = `rgba(255, 255, 255, ${0.06 + (i % 3) * 0.02})`;
+      ctx.beginPath();
+      ctx.ellipse(x, y, r * 1.2, r * 0.8, 0, 0, Math.PI * 2);
+      ctx.fill();
+    }
+
+    this.cloudTexture = Texture.from(canvas);
+    this.cloudFarTexture = Texture.from(farCanvas);
+    if (!this.cloudFarSprite) {
+      this.cloudFarSprite = new TilingSprite({ texture: this.cloudFarTexture, width: widthPx, height: heightPx });
+      this.cloudFarSprite.alpha = 0.08;
+      this.cloudFarSprite.x = 0;
+      this.cloudFarSprite.y = 0;
+      this.effectLayer.addChild(this.cloudFarSprite);
+    } else {
+      this.cloudFarSprite.texture = this.cloudFarTexture;
+      this.cloudFarSprite.width = widthPx;
+      this.cloudFarSprite.height = heightPx;
+    }
+    if (!this.cloudSprite) {
+      this.cloudSprite = new TilingSprite({ texture: this.cloudTexture, width: widthPx, height: heightPx });
+      this.cloudSprite.alpha = 0.12;
+      this.cloudSprite.x = 0;
+      this.cloudSprite.y = 0;
+      this.effectLayer.addChild(this.cloudSprite);
+    } else {
+      this.cloudSprite.texture = this.cloudTexture;
+      this.cloudSprite.width = widthPx;
+      this.cloudSprite.height = heightPx;
+    }
+  }
+
   private updateFogDrift(): void {
     if (!this.fogSprite) {
       return;
@@ -407,6 +537,34 @@ export class PixiRenderer {
     this.fogOffsetY += dt * driftSpeed * 0.6;
     this.fogSprite.tilePosition.x = -this.fogOffsetX;
     this.fogSprite.tilePosition.y = -this.fogOffsetY;
+  }
+
+  private updateCloudDrift(): void {
+    if (!this.cloudSprite) {
+      return;
+    }
+    const now: number = performance.now();
+    const dt: number = Math.min(80, now - this.lastCloudTime);
+    this.lastCloudTime = now;
+    const driftSpeed: number = 0.004;
+    this.cloudOffsetX += dt * driftSpeed;
+    this.cloudOffsetY += dt * driftSpeed * 0.3;
+    this.cloudSprite.tilePosition.x = -this.cloudOffsetX;
+    this.cloudSprite.tilePosition.y = -this.cloudOffsetY;
+  }
+
+  private updateCloudFarDrift(): void {
+    if (!this.cloudFarSprite) {
+      return;
+    }
+    const now: number = performance.now();
+    const dt: number = Math.min(80, now - this.lastCloudFarTime);
+    this.lastCloudFarTime = now;
+    const driftSpeed: number = 0.0025;
+    this.cloudFarOffsetX += dt * driftSpeed;
+    this.cloudFarOffsetY += dt * driftSpeed * 0.2;
+    this.cloudFarSprite.tilePosition.x = -this.cloudFarOffsetX;
+    this.cloudFarSprite.tilePosition.y = -this.cloudFarOffsetY;
   }
 
   private updateVignette(widthPx: number, heightPx: number): void {
@@ -517,6 +675,24 @@ export class PixiRenderer {
         return 'ow_mountain';
       case 'road':
         return 'ow_road';
+      case 'town_ground':
+        return 'ow_town_ground';
+      case 'town_road':
+        return 'ow_town_road';
+      case 'town_square':
+        return 'ow_town_square';
+      case 'town_gate':
+        return 'ow_town_gate';
+      case 'town_wall':
+        return 'ow_town_wall';
+      case 'town_shop':
+        return 'ow_town_shop';
+      case 'town_tavern':
+        return 'ow_town_tavern';
+      case 'town_smith':
+        return 'ow_town_smith';
+      case 'town_house':
+        return 'ow_town_house';
       case 'town':
         return 'ow_town';
       case 'dungeon':
@@ -526,12 +702,38 @@ export class PixiRenderer {
     }
   }
 
+  private townKey(tile: string): SpriteKey {
+    switch (tile) {
+      case 'wall':
+        return 'tn_wall';
+      case 'road':
+        return 'tn_road';
+      case 'square':
+        return 'tn_square';
+      case 'gate':
+        return 'tn_gate';
+      case 'shop':
+        return 'tn_shop';
+      case 'tavern':
+        return 'tn_tavern';
+      case 'smith':
+        return 'tn_smith';
+      case 'house':
+        return 'tn_house';
+      case 'floor':
+      default:
+        return 'tn_floor';
+    }
+  }
+
   private dungeonKey(theme: DungeonTheme, tile: string): SpriteKey {
     switch (tile) {
       case 'wall':
         return theme === 'caves' ? 'dg_wall_caves' : theme === 'crypt' ? 'dg_wall_crypt' : 'dg_wall_ruins';
       case 'floor':
         return theme === 'caves' ? 'dg_floor_caves' : theme === 'crypt' ? 'dg_floor_crypt' : 'dg_floor_ruins';
+      case 'bossFloor':
+        return theme === 'caves' ? 'dg_boss_floor_caves' : theme === 'crypt' ? 'dg_boss_floor_crypt' : 'dg_boss_floor_ruins';
       case 'stairsUp':
       case 'stairsDown':
         return theme === 'caves' ? 'dg_stairs_caves' : theme === 'crypt' ? 'dg_stairs_crypt' : 'dg_stairs_ruins';
@@ -546,6 +748,12 @@ export class PixiRenderer {
     }
     if (glyph === 'O') {
       return 'ent_orc';
+    }
+    if (glyph === 'w') {
+      return 'ent_wraith';
+    }
+    if (glyph === 'B') {
+      return 'ent_boss';
     }
     return 'ent_goblin';
   }

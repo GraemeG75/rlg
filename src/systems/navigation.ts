@@ -22,8 +22,14 @@ export function findNearestOverworldTile(overworld: Overworld, from: Point, want
             ];
 
       for (const p of candidates) {
-        if (overworld.getTile(p.x, p.y) !== wanted) { continue; }
-        if (!canEnterOverworldTile(overworld, p)) { continue; }
+        const tile: string = overworld.getTile(p.x, p.y);
+        const matchesTown: boolean = wanted === 'town' && (tile === 'town' || tile.startsWith('town_'));
+        if (!matchesTown && tile !== wanted) {
+          continue;
+        }
+        if (!canEnterOverworldTile(overworld, p)) {
+          continue;
+        }
         return p;
       }
     }
@@ -34,13 +40,28 @@ export function findNearestOverworldTile(overworld: Overworld, from: Point, want
 
 export function findOverworldPath(overworld: Overworld, from: Point, to: Point, options: OverworldNavOptions): Point[] | undefined {
   const cost = (p: Point): number => {
-    if (!options.preferRoads) { return 1; }
+    if (!options.preferRoads) {
+      return 1;
+    }
     const tile: string = overworld.getTile(p.x, p.y);
-    if (tile === 'road') { return 0.35; }
-    if (tile === 'grass') { return 1.0; }
-    if (tile === 'forest') { return 1.4; }
-    if (tile === 'mountain') { return 9999; }
-    if (tile === 'water') { return 9999; }
+    if (tile === 'road') {
+      return 0.35;
+    }
+    if (tile.startsWith('town_')) {
+      return tile === 'town_gate' || tile === 'town_road' ? 0.5 : 0.9;
+    }
+    if (tile === 'grass') {
+      return 1.0;
+    }
+    if (tile === 'forest') {
+      return 1.4;
+    }
+    if (tile === 'mountain') {
+      return 9999;
+    }
+    if (tile === 'water') {
+      return 9999;
+    }
     // towns/dungeons should be reachable, treat like grass
     return 1.0;
   };

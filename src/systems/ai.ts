@@ -1,21 +1,18 @@
-import type { Entity, Point } from "../core/types";
-import type { Dungeon } from "../maps/dungeon";
-import { aStar } from "./astar";
-import { canEnterDungeonTile, isBlockedByEntity } from "./rules";
+import type { Entity, Point } from '../core/types';
+import type { Dungeon } from '../maps/dungeon';
+import { aStar } from './astar';
+import { canEnterDungeonTile, isBlockedByEntity } from './rules';
 
-export function nextMonsterStep(
-  monster: Entity,
-  player: Entity,
-  dungeon: Dungeon,
-  entities: Entity[]
-): Point | undefined {
+export function nextMonsterStep(monster: Entity, player: Entity, dungeon: Dungeon, entities: Entity[]): Point | undefined {
   const path: Point[] | undefined = aStar(
     monster.pos,
     player.pos,
     (p: Point) => canEnterDungeonTile(dungeon, p),
-    (p: Point) => !!isBlockedByEntity(entities, "dungeon", dungeon.id, p)
+    (p: Point) => !!isBlockedByEntity(entities, 'dungeon', dungeon.id, undefined, p)
   );
 
-  if (!path || path.length < 2) { return undefined; }
+  if (!path || path.length < 2) {
+    return undefined;
+  }
   return path[1];
 }

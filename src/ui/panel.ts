@@ -255,14 +255,16 @@ function renderQuestLog(quests: import('../core/types').Quest[], activeTownId: s
     const rewardOptions: Item[] = q.rewardItemIds
       ? q.rewardItemIds.map((id) => items.find((it) => it.id === id)).filter((it): it is Item => !!it)
       : [];
-    const rewardItemLabel: string = rewardItem ? `, ${rewardItem.name}` : '';
+    const rewardItemLabel: string = rewardItem
+      ? `, ${renderRarityBadge(rewardItem)}${escapeHtml(rewardItem.name)} <span class="tag tagChosen">Chosen</span>`
+      : '';
     lines.push(`<div class="small"><b>${escapeHtml(q.description)}</b></div>`);
-    lines.push(
-      `<div class="small panelLine">${escapeHtml(progress)} • Reward: ${q.rewardGold}g, ${q.rewardXp} XP${escapeHtml(rewardItemLabel)}</div>`
-    );
+    lines.push(`<div class="small panelLine">${escapeHtml(progress)} • Reward: ${q.rewardGold}g, ${q.rewardXp} XP${rewardItemLabel}</div>`);
     if (!rewardItem && rewardOptions.length > 0) {
-      const optionNames: string = rewardOptions.map((it) => it.name).join(' or ');
-      lines.push(`<div class="small panelLine">Choose 1: ${escapeHtml(optionNames)}</div>`);
+      const optionLabels: string = rewardOptions
+        .map((it) => `${renderRarityBadge(it)}${escapeHtml(it.name)}`)
+        .join(' <span class="muted">or</span> ');
+      lines.push(`<div class="small panelLine">Choose 1: ${optionLabels}</div>`);
     }
     lines.push(`<div class="small muted">Status: ${escapeHtml(status)}</div>`);
 
@@ -271,7 +273,9 @@ function renderQuestLog(quests: import('../core/types').Quest[], activeTownId: s
         for (const option of rewardOptions) {
           lines.push(
             `<div class="row" style="justify-content:flex-end;">` +
-              `<button class="btnTiny" data-act="chooseReward" data-quest="${q.id}" data-reward="${option.id}">Choose ${escapeHtml(option.name)}</button>` +
+              `<button class="btnTiny" data-act="chooseReward" data-quest="${q.id}" data-reward="${option.id}">` +
+              `${renderRarityBadge(option)}Choose ${escapeHtml(option.name)}` +
+              `</button>` +
               `</div>`
           );
         }
