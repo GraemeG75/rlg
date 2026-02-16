@@ -218,15 +218,7 @@ export class PixiRenderer {
     if (this.fogSprite) {
       this.fogSprite.visible = ctx.mode === 'dungeon';
     }
-    if (this.cloudFarSprite) {
-      this.cloudFarSprite.visible = ctx.mode === 'overworld';
-    }
-    if (this.cloudSprite) {
-      this.cloudSprite.visible = ctx.mode === 'overworld';
-    }
     this.updateFogDrift();
-    this.updateCloudFarDrift();
-    this.updateCloudDrift();
 
     if (this.vignetteSprite) {
       this.vignetteSprite.alpha = ctx.mode === 'dungeon' ? 0.75 : 0.45;
@@ -484,15 +476,7 @@ export class PixiRenderer {
     if (this.fogSprite) {
       this.fogSprite.visible = ctx.mode === 'dungeon';
     }
-    if (this.cloudFarSprite) {
-      this.cloudFarSprite.visible = ctx.mode === 'overworld';
-    }
-    if (this.cloudSprite) {
-      this.cloudSprite.visible = ctx.mode === 'overworld';
-    }
     this.updateFogDrift();
-    this.updateCloudFarDrift();
-    this.updateCloudDrift();
 
     if (this.vignetteSprite) {
       this.vignetteSprite.alpha = ctx.mode === 'dungeon' ? 0.75 : 0.45;
@@ -645,6 +629,8 @@ export class PixiRenderer {
     ctx.lineWidth = 1;
     ctx.stroke();
 
+    this.applyIsoTileDetail(ctx, kind, tile, isoTileW, isoTileH);
+
     if (tileHeight > 0) {
       const sideLeft: string = colors.edge;
       const sideRight: string = this.darkenHex(colors.base, 0.2);
@@ -673,6 +659,73 @@ export class PixiRenderer {
     return texture;
   }
 
+  private applyIsoTileDetail(
+    ctx: CanvasRenderingContext2D,
+    kind: 'overworld' | 'dungeon' | 'town',
+    tile: string,
+    isoTileW: number,
+    isoTileH: number
+  ): void {
+    if (kind !== 'overworld') {
+      return;
+    }
+
+    const w: number = isoTileW;
+    const h: number = isoTileH;
+    ctx.save();
+    ctx.beginPath();
+    ctx.moveTo(w / 2, 0);
+    ctx.lineTo(w, h / 2);
+    ctx.lineTo(w / 2, h);
+    ctx.lineTo(0, h / 2);
+    ctx.closePath();
+    ctx.clip();
+
+    if (tile === 'grass') {
+      ctx.fillStyle = 'rgba(255, 255, 255, 0.06)';
+      for (let i: number = 0; i < 18; i += 1) {
+        ctx.fillRect((i * 7) % w, (i * 11) % h, 2, 1);
+      }
+    } else if (tile === 'forest') {
+      ctx.fillStyle = 'rgba(0, 0, 0, 0.18)';
+      for (let i: number = 0; i < 10; i += 1) {
+        const x: number = (i * 9) % w;
+        const y: number = (i * 13) % h;
+        ctx.fillRect(x, y, 4, 2);
+      }
+      ctx.fillStyle = 'rgba(255, 255, 255, 0.08)';
+      for (let i: number = 0; i < 8; i += 1) {
+        ctx.fillRect((i * 11) % w, (i * 17) % h, 2, 2);
+      }
+    } else if (tile === 'water' || tile === 'water_deep') {
+      ctx.strokeStyle = 'rgba(255, 255, 255, 0.12)';
+      ctx.lineWidth = 1;
+      for (let i: number = 0; i < 4; i += 1) {
+        const y: number = h * 0.2 + i * (h * 0.18);
+        ctx.beginPath();
+        ctx.moveTo(w * 0.1, y);
+        ctx.lineTo(w * 0.9, y - h * 0.06);
+        ctx.stroke();
+      }
+    } else if (tile === 'mountain' || tile === 'mountain_snow') {
+      ctx.strokeStyle = 'rgba(0, 0, 0, 0.2)';
+      ctx.lineWidth = 1;
+      for (let i: number = 0; i < 5; i += 1) {
+        const y: number = h * 0.2 + i * (h * 0.12);
+        ctx.beginPath();
+        ctx.moveTo(w * 0.15, y);
+        ctx.lineTo(w * 0.85, y + h * 0.04);
+        ctx.stroke();
+      }
+      if (tile === 'mountain_snow') {
+        ctx.fillStyle = 'rgba(255, 255, 255, 0.25)';
+        ctx.fillRect(w * 0.25, h * 0.15, w * 0.5, h * 0.15);
+      }
+    }
+
+    ctx.restore();
+  }
+
   private isoTileColors(kind: 'overworld' | 'dungeon' | 'town', tile: string, theme: DungeonTheme | undefined): { base: string; edge: string } {
     if (kind === 'overworld') {
       switch (tile) {
@@ -687,7 +740,7 @@ export class PixiRenderer {
         case 'mountain_snow':
           return { base: '#b9c2cd', edge: '#dde3ea' };
         case 'road':
-          return { base: '#2b251c', edge: '#3a2e21' };
+          return { base: '#4f5359', edge: '#6b727a' };
         case 'town_ground':
           return { base: '#2f2720', edge: '#3f352b' };
         case 'town_road':
@@ -811,7 +864,6 @@ export class PixiRenderer {
     this.tileLayer.removeChildren();
 
     this.updateFog(widthPx, heightPx);
-    this.updateClouds(widthPx, heightPx);
     this.updateVignette(widthPx, heightPx);
 
     for (let row: number = 0; row < viewHeight; row++) {
@@ -1018,38 +1070,38 @@ export class PixiRenderer {
     }
 
     const farCanvas: HTMLCanvasElement = document.createElement('canvas');
-    farCanvas.width = 128;
-    farCanvas.height = 128;
+    farCanvas.width = 160;
+    farCanvas.height = 160;
     const farCtx: CanvasRenderingContext2D | null = farCanvas.getContext('2d');
     if (!farCtx) {
       return;
     }
 
     farCtx.clearRect(0, 0, farCanvas.width, farCanvas.height);
-    for (let i: number = 0; i < 34; i += 1) {
+    for (let i: number = 0; i < 32; i += 1) {
       const x: number = (i * 31) % farCanvas.width;
       const y: number = (i * 47) % farCanvas.height;
-      const r: number = 14 + (i % 4) * 4;
-      farCtx.fillStyle = `rgba(255, 255, 255, ${0.04 + (i % 3) * 0.015})`;
+      const r: number = 18 + (i % 4) * 5;
+      farCtx.fillStyle = `rgba(255, 255, 255, ${0.08 + (i % 3) * 0.02})`;
       farCtx.beginPath();
       farCtx.ellipse(x, y, r * 1.4, r * 0.9, 0, 0, Math.PI * 2);
       farCtx.fill();
     }
 
     const canvas: HTMLCanvasElement = document.createElement('canvas');
-    canvas.width = 96;
-    canvas.height = 96;
+    canvas.width = 128;
+    canvas.height = 128;
     const ctx: CanvasRenderingContext2D | null = canvas.getContext('2d');
     if (!ctx) {
       return;
     }
 
     ctx.clearRect(0, 0, canvas.width, canvas.height);
-    for (let i: number = 0; i < 30; i += 1) {
+    for (let i: number = 0; i < 28; i += 1) {
       const x: number = (i * 19) % canvas.width;
       const y: number = (i * 29) % canvas.height;
-      const r: number = 10 + (i % 5) * 3;
-      ctx.fillStyle = `rgba(255, 255, 255, ${0.06 + (i % 3) * 0.02})`;
+      const r: number = 14 + (i % 5) * 4;
+      ctx.fillStyle = `rgba(255, 255, 255, ${0.12 + (i % 3) * 0.03})`;
       ctx.beginPath();
       ctx.ellipse(x, y, r * 1.2, r * 0.8, 0, 0, Math.PI * 2);
       ctx.fill();
@@ -1059,7 +1111,8 @@ export class PixiRenderer {
     this.cloudFarTexture = Texture.from(farCanvas);
     if (!this.cloudFarSprite) {
       this.cloudFarSprite = new TilingSprite({ texture: this.cloudFarTexture, width: widthPx, height: heightPx });
-      this.cloudFarSprite.alpha = 0.08;
+      this.cloudFarSprite.alpha = 0.16;
+      this.cloudFarSprite.tileScale.set(1.15, 1.15);
       this.cloudFarSprite.x = 0;
       this.cloudFarSprite.y = 0;
       this.effectLayer.addChild(this.cloudFarSprite);
@@ -1067,10 +1120,12 @@ export class PixiRenderer {
       this.cloudFarSprite.texture = this.cloudFarTexture;
       this.cloudFarSprite.width = widthPx;
       this.cloudFarSprite.height = heightPx;
+      this.cloudFarSprite.tileScale.set(1.15, 1.15);
     }
     if (!this.cloudSprite) {
       this.cloudSprite = new TilingSprite({ texture: this.cloudTexture, width: widthPx, height: heightPx });
-      this.cloudSprite.alpha = 0.12;
+      this.cloudSprite.alpha = 0.26;
+      this.cloudSprite.tileScale.set(1.25, 1.25);
       this.cloudSprite.x = 0;
       this.cloudSprite.y = 0;
       this.effectLayer.addChild(this.cloudSprite);
@@ -1078,6 +1133,7 @@ export class PixiRenderer {
       this.cloudSprite.texture = this.cloudTexture;
       this.cloudSprite.width = widthPx;
       this.cloudSprite.height = heightPx;
+      this.cloudSprite.tileScale.set(1.25, 1.25);
     }
   }
 
@@ -1102,7 +1158,7 @@ export class PixiRenderer {
     const now: number = performance.now();
     const dt: number = Math.min(80, now - this.lastCloudTime);
     this.lastCloudTime = now;
-    const driftSpeed: number = 0.004;
+    const driftSpeed: number = 0.008;
     this.cloudOffsetX += dt * driftSpeed;
     this.cloudOffsetY += dt * driftSpeed * 0.3;
     this.cloudSprite.tilePosition.x = -this.cloudOffsetX;
@@ -1116,7 +1172,7 @@ export class PixiRenderer {
     const now: number = performance.now();
     const dt: number = Math.min(80, now - this.lastCloudFarTime);
     this.lastCloudFarTime = now;
-    const driftSpeed: number = 0.0025;
+    const driftSpeed: number = 0.0045;
     this.cloudFarOffsetX += dt * driftSpeed;
     this.cloudFarOffsetY += dt * driftSpeed * 0.2;
     this.cloudFarSprite.tilePosition.x = -this.cloudFarOffsetX;
