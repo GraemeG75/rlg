@@ -16,7 +16,6 @@ import { generateTown, getTownTile } from './maps/town';
 import { computeDungeonFov, decayVisibilityToSeen } from './systems/fov';
 import { canEnterDungeonTile, canEnterOverworldTile, canEnterTownTile, isBlockedByEntity } from './systems/rules';
 import { nextMonsterStep } from './systems/ai';
-import { renderAscii } from './render/ascii';
 import { PixiRenderer } from './render/pixi';
 import { MessageLog } from './ui/log';
 import { loadFromBase62String, loadFromLocalStorage, saveToLocalStorage, serializeSaveDataBase62, type SaveDataV3 } from './core/save';
@@ -26,7 +25,7 @@ import { aStar } from './systems/astar';
 import { hash2D } from './core/hash';
 import { t } from './i18n';
 
-type RendererMode = 'ascii' | 'canvas' | 'isometric';
+type RendererMode = 'canvas' | 'isometric';
 
 type DungeonStackFrame = {
   baseId: string;
@@ -701,7 +700,6 @@ const menuRenderLabel: HTMLElement = document.getElementById('menuRenderLabel')!
 const nameLabel: HTMLElement = document.getElementById('nameLabel')!;
 const genderLabel: HTMLElement = document.getElementById('genderLabel')!;
 
-const btnAscii: HTMLButtonElement = document.getElementById('btnAscii') as HTMLButtonElement;
 const btnCanvas: HTMLButtonElement = document.getElementById('btnCanvas') as HTMLButtonElement;
 const btnNewSeed: HTMLButtonElement = document.getElementById('btnNewSeed') as HTMLButtonElement;
 const btnSave: HTMLButtonElement = document.getElementById('btnSave') as HTMLButtonElement;
@@ -767,7 +765,6 @@ function applyStaticI18n(): void {
   nameLabel.textContent = t('ui.name.label');
   genderLabel.textContent = t('ui.gender.label');
 
-  btnAscii.textContent = t('ui.buttons.ascii');
   btnCanvas.textContent = t('ui.buttons.canvas');
   btnNewSeed.textContent = t('ui.buttons.newSeed');
   btnSave.textContent = t('ui.buttons.save');
@@ -1771,14 +1768,8 @@ function removeDeadEntities(s: GameState): void {
 
 function handleAction(action: Action): void {
   if (action.kind === 'toggleRenderer') {
-    state.rendererMode = state.rendererMode === 'isometric' ? 'canvas' : state.rendererMode === 'canvas' ? 'ascii' : 'isometric';
-    state.log.push(
-      state.rendererMode === 'isometric'
-        ? t('log.renderer.iso')
-        : state.rendererMode === 'canvas'
-          ? t('log.renderer.topdown')
-          : t('log.renderer.ascii')
-    );
+    state.rendererMode = state.rendererMode === 'isometric' ? 'canvas' : 'isometric';
+    state.log.push(state.rendererMode === 'isometric' ? t('log.renderer.iso') : t('log.renderer.topdown'));
     syncRendererUi();
     render();
     return;
@@ -2606,11 +2597,6 @@ function setDestination(dest: Point): void {
 }
 
 function syncRendererUi(): void {
-  if (state.rendererMode === 'ascii') {
-    asciiEl.style.display = 'block';
-    canvasWrap.style.display = 'none';
-    return;
-  }
   asciiEl.style.display = 'none';
   canvasWrap.style.display = 'block';
 }
@@ -2629,10 +2615,7 @@ function render(): void {
             theme: dungeon?.theme ? t(`theme.${dungeon.theme}`) : '?'
           });
 
-  renderPill.textContent = t('ui.render.pill', {
-    renderer: t(`ui.render.${state.rendererMode}`),
-    fov: state.useFov ? t('ui.fov.on') : t('ui.fov.off')
-  });
+  renderPill.textContent = t('ui.render.pill', { fov: state.useFov ? t('ui.fov.on') : t('ui.fov.off') });
 
   if (state.mode === 'dungeon' && dungeon && state.useFov) {
     decayVisibilityToSeen(dungeon);
@@ -2738,26 +2721,6 @@ function render(): void {
       41
     );
 
-    return;
-  }
-
-  if (state.rendererMode === 'ascii') {
-    asciiEl.style.display = 'block';
-    canvasWrap.style.display = 'none';
-    asciiEl.textContent = renderAscii(
-      {
-        mode: state.mode,
-        overworld: state.overworld,
-        dungeon,
-        town,
-        player: state.player,
-        entities: state.entities,
-        items: state.items,
-        useFov: state.useFov
-      },
-      PIXI_VIEW_W,
-      PIXI_VIEW_H
-    );
     return;
   }
 
@@ -3196,13 +3159,6 @@ window.addEventListener('keydown', (e: KeyboardEvent) => {
   }
   e.preventDefault();
   handleAction(a);
-});
-
-btnAscii.addEventListener('click', () => {
-  state.rendererMode = 'ascii';
-  state.log.push(t('log.renderer.ascii'));
-  syncRendererUi();
-  render();
 });
 
 btnCanvas.addEventListener('click', () => {
