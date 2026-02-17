@@ -196,6 +196,13 @@
         max-height: 220px;
         overflow: auto;
       }
+      #todo {
+        margin-top: 10px;
+        border-top: 1px solid var(--panel-edge);
+        padding-top: 10px;
+        max-height: 180px;
+        overflow: auto;
+      }
       #panel {
         margin-top: 10px;
         border-top: 1px solid var(--panel-edge);
@@ -614,6 +621,13 @@
           max-width: 100%;
         }
       }
+      .site-footer {
+        text-align: center;
+        padding: 2rem;
+        margin-top: 2rem;
+        color: rgba(248, 249, 250, 0.6);
+        font-size: 0.875rem;
+      }
     </style>
   </head>
   <body>
@@ -693,18 +707,6 @@
             </div>
           </details>
         </div>
-        <div class="hint marginTop10">
-          <span id="supportLead">Enjoying the adventure?</span>
-          <a
-            id="supportLink"
-            href="https://buymeacoffee.com/figuremodel"
-            target="_blank"
-            rel="noopener noreferrer"
-            >Buy me a coffee</a
-          >
-          <span id="supportTail">to keep it going.</span>
-        </div>
-
         <div
           class="hint marginTop10"
           id="overworldHint">
@@ -727,6 +729,16 @@
         <div id="stats"></div>
         <div id="panel"></div>
         <div id="log"></div>
+        <div id="todo">
+          <div
+            id="todoTitle"
+            class="panelSectionTitle">
+            Upcoming Features
+          </div>
+          <div
+            id="todoList"
+            class="small"></div>
+        </div>
       </div>
     </div>
 
@@ -841,6 +853,32 @@
       </div>
     </div>
 
+    <footer class="site-footer">
+      <div class="hint">
+        <span id="supportLead">Enjoying the adventure?</span>
+        <a
+          id="supportLink"
+          href="https://buymeacoffee.com/figuremodel"
+          target="_blank"
+          rel="noopener noreferrer"
+          >Buy me a coffee</a
+        >
+        <span id="supportTail">to keep it going.</span>
+      </div>
+      <p>
+        Comments / Questions / Feedback? Reach out at
+        <a href="mailto:arom@generatedpixel.dev">arom@generatedpixel.dev</a>
+      </p>
+      <p>
+        Site created by
+        <a
+          href="https://generatedpixel.dev/"
+          target="_blank"
+          rel="noopener noreferrer"
+          >GeneratedPixel</a
+        >
+      </p>
+    </footer>
     <script
       type="module"
       src="/src/main.ts"></script>

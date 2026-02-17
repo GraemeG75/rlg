@@ -691,6 +691,8 @@ const renderPill: HTMLElement = document.getElementById('renderPill')!;
 const statsEl: HTMLElement = document.getElementById('stats')!;
 const panelEl: HTMLElement = document.getElementById('panel')!;
 const logEl: HTMLElement = document.getElementById('log')!;
+const todoTitleEl: HTMLElement = document.getElementById('todoTitle')!;
+const todoListEl: HTMLElement = document.getElementById('todoList')!;
 const controlsHintEl: HTMLElement = document.getElementById('controlsHint')!;
 const supportLeadEl: HTMLElement = document.getElementById('supportLead')!;
 const supportLinkEl: HTMLAnchorElement = document.getElementById('supportLink') as HTMLAnchorElement;
@@ -777,6 +779,7 @@ function applyStaticI18n(): void {
   menuRenderLabel.textContent = t('ui.menu.render');
   nameLabel.textContent = t('ui.name.label');
   genderLabel.textContent = t('ui.gender.label');
+  todoTitleEl.textContent = t('ui.todo.title');
 
   btnCanvas.textContent = t('ui.buttons.canvas');
   btnNewSeed.textContent = t('ui.buttons.newSeed');
@@ -2735,6 +2738,15 @@ function render(): void {
     .slice(0, 160)
     .map((m) => `<div>• ${escapeHtml(m.text)}</div>`)
     .join('');
+
+  todoListEl.innerHTML = `
+    <div>• ${escapeHtml(t('ui.todo.item.towns'))}</div>
+    <div>• ${escapeHtml(t('ui.todo.item.classes'))}</div>
+    <div>• ${escapeHtml(t('ui.todo.item.potions'))}</div>
+    <div>• ${escapeHtml(t('ui.todo.item.translations'))}</div>
+    <div>• ${escapeHtml(t('ui.todo.item.stats'))}</div>
+    <div>• ${escapeHtml(t('ui.todo.item.ui'))}</div>
+  `;
 
   asciiEl.style.display = 'none';
   canvasWrap.style.display = 'block';
