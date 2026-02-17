@@ -33,7 +33,7 @@ import {
   townSeedFromWorldPos
 } from './maps/overworld';
 import type { Dungeon, DungeonTheme } from './maps/dungeon';
-import { DungeonLayout, generateDungeon, getDungeonTile, randomFloorPoint } from './maps/dungeon';
+import { DungeonGenerator, DungeonLayout, getDungeonTile, randomFloorPoint } from './maps/dungeon';
 import type { Town } from './maps/town';
 import { generateTown, getTownTile } from './maps/town';
 import { FieldOfView } from './systems/fov';
@@ -94,6 +94,7 @@ type GameState = {
   autoPath?: Point[];
 
   log: MessageLog;
+  preferRoads: boolean;
 };
 
 type ClassConfig = {
@@ -880,6 +881,8 @@ const canvasRenderer: PixiRenderer = new PixiRenderer(canvas);
 const minimapWrap: HTMLElement = document.getElementById('minimapWrap')!;
 const minimapCanvas: HTMLCanvasElement = document.getElementById('minimap') as HTMLCanvasElement;
 const minimapCtx: CanvasRenderingContext2D | null = minimapCanvas.getContext('2d');
+const pathModeLabel: HTMLElement = document.getElementById('pathModeLabel')!;
+const btnPathMode: HTMLButtonElement = document.getElementById('btnPathMode') as HTMLButtonElement;
 const classModal: HTMLElement = document.getElementById('classSelect')!;
 const classSelectTitle: HTMLElement = document.getElementById('classSelectTitle')!;
 const classSelectSubtitle: HTMLElement = document.getElementById('classSelectSubtitle')!;
@@ -887,7 +890,8 @@ const classButtons: HTMLButtonElement[] = Array.from(classModal.querySelectorAll
 const nameInput: HTMLInputElement = document.getElementById('nameInput') as HTMLInputElement;
 const nameErrorEl: HTMLElement = document.getElementById('nameError')!;
 const btnNameRandom: HTMLButtonElement = document.getElementById('btnNameRandom') as HTMLButtonElement;
-const genderSelect: HTMLSelectElement = document.getElementById('genderSelect') as HTMLSelectElement;
+const genderOptionsWrap: HTMLElement = document.getElementById('genderOptions')!;
+const genderRadios: HTMLInputElement[] = Array.from(genderOptionsWrap.querySelectorAll<HTMLInputElement>('input[name="genderOption"]'));
 const btnLoadFromModal: HTMLButtonElement = document.getElementById('btnLoadFromModal') as HTMLButtonElement;
 const saveModal: HTMLElement = document.getElementById('saveModal')!;
 const saveModalTitle: HTMLElement = document.getElementById('saveModalTitle')!;
@@ -945,6 +949,7 @@ function applyStaticI18n(): void {
   nameLabel.textContent = t('ui.name.label');
   genderLabel.textContent = t('ui.gender.label');
   todoTitleEl.textContent = t('ui.todo.title');
+  pathModeLabel.textContent = t('ui.pathMode.label');
 
   btnCanvas.textContent = t('ui.buttons.canvas');
   btnNewSeed.textContent = t('ui.buttons.newSeed');
@@ -971,14 +976,17 @@ function applyStaticI18n(): void {
     { key: Gender.Male, label: t('gender.male') },
     { key: Gender.Nonbinary, label: t('gender.nonbinary') }
   ];
-  genderSelect.innerHTML = '';
   for (const option of genderOptions) {
-    const opt = document.createElement('option');
-    opt.value = option.key;
-    opt.textContent = option.label;
-    genderSelect.appendChild(opt);
+    const optionLabel: HTMLElement | null = genderOptionsWrap.querySelector(`[data-gender-option="${option.key}"]`);
+    if (optionLabel) {
+      optionLabel.textContent = option.label;
+    }
+    const radio: HTMLInputElement | undefined = genderRadios.find((input) => input.value === option.key);
+    if (radio) {
+      radio.setAttribute('aria-label', option.label);
+    }
   }
-  genderSelect.value = pendingGender;
+  setGenderSelection(pendingGender);
 
   classButtons.forEach((btn) => {
     const classType: CharacterClass | undefined = btn.dataset.class as CharacterClass | undefined;
@@ -997,6 +1005,31 @@ function applyStaticI18n(): void {
 }
 
 applyStaticI18n();
+
+function setGenderSelection(gender: Gender): void {
+  let matched: boolean = false;
+  genderRadios.forEach((radio) => {
+    const isMatch: boolean = radio.value === gender;
+    radio.checked = isMatch;
+    if (isMatch) {
+      matched = true;
+    }
+  });
+  if (!matched && genderRadios.length > 0) {
+    genderRadios[0].checked = true;
+  }
+}
+
+function getSelectedGender(): Gender {
+  const selected: HTMLInputElement | undefined = genderRadios.find((radio) => radio.checked);
+  if (selected) {
+    return selected.value as Gender;
+  }
+  if (genderRadios.length > 0) {
+    return genderRadios[0].value as Gender;
+  }
+  return pendingGender;
+}
 
 /**
  * Normalizes a raw player name input.
@@ -1115,7 +1148,8 @@ function newGame(worldSeed: number, classChoice: CharacterClass, gender: Gender,
     mapCursor: { x: 0, y: 0 },
     destination: undefined,
     autoPath: undefined,
-    log: new MessageLog(160)
+    log: new MessageLog(160),
+    preferRoads: true
   };
 
   state.log.push(t('log.welcome'));
@@ -1182,7 +1216,7 @@ function isClassModalVisible(): boolean {
  */
 function startNewRun(classChoice: CharacterClass): void {
   pendingClass = classChoice;
-  const gender = (genderSelect.value as Gender) || pendingGender;
+  const gender: Gender = getSelectedGender();
   pendingGender = gender;
   let rawName: string = nameInput.value;
   if (!rawName.trim()) {
@@ -1256,7 +1290,16 @@ function ensureDungeonLevel(s: GameState, baseId: string, depth: number, entranc
       : dungeonSeedFromWorldPos(s.worldSeed, entranceWorldPos.x, entranceWorldPos.y);
   const levelSeed: number = (baseSeed ^ (depth * 0x9e3779b9)) | 0;
 
-  const dungeon: Dungeon = generateDungeon(levelId, baseId, depth, levelSeed, 80, 50, layout);
+  const generator: DungeonGenerator = new DungeonGenerator({
+    dungeonId: levelId,
+    baseId,
+    depth,
+    seed: levelSeed,
+    width: 80,
+    height: 50,
+    layout
+  });
+  const dungeon: Dungeon = generator.generate();
 
   spawnMonstersInDungeon(s, dungeon, levelSeed);
   spawnLootInDungeon(s, dungeon, levelSeed);
@@ -1296,12 +1339,13 @@ const BOSS_MIN_DEPTH: number = 3;
 function spawnMonstersInDungeon(s: GameState, dungeon: Dungeon, seed: number): void {
   const monsterCount: number = 5 + Math.min(12, dungeon.depth * 2);
   const rng: Rng = new Rng(seed ^ 0xbeef);
+  const playerLevel: number = s.player.level;
 
   for (let i: number = 0; i < monsterCount; i++) {
     const p: Point = randomFloorPoint(dungeon, seed + 1000 + i * 17);
 
     const roll: number = rng.nextInt(0, 100);
-    const monster = createMonsterForDepth(dungeon.depth, roll, s.rng, dungeon.id, i, p);
+    const monster = createMonsterForDepth(dungeon.depth, roll, s.rng, dungeon.id, i, p, playerLevel);
 
     s.entities.push(monster);
   }
@@ -1317,7 +1361,11 @@ function spawnMonstersInDungeon(s: GameState, dungeon: Dungeon, seed: number): v
  * @param p The spawn position.
  * @returns The monster entity.
  */
-function createMonsterForDepth(depth: number, roll: number, rng: Rng, dungeonId: string, i: number, p: Point): Entity {
+function createMonsterForDepth(depth: number, roll: number, rng: Rng, dungeonId: string, i: number, p: Point, playerLevel: number): Entity {
+  const levelDelta: number = Math.max(0, playerLevel - depth);
+  const effectiveDepth: number = depth + Math.floor(levelDelta / 2);
+  const monsterLevel: number = Math.max(1, Math.floor((depth + playerLevel) / 2));
+
   // Slime: weak, Orc: tougher, Goblin: baseline
   if (roll < 30) {
     return {
@@ -1327,11 +1375,11 @@ function createMonsterForDepth(depth: number, roll: number, rng: Rng, dungeonId:
       glyph: 's',
       pos: p,
       mapRef: { kind: Mode.Dungeon, dungeonId },
-      hp: 4 + depth,
-      maxHp: 4 + depth,
-      baseAttack: 1 + Math.floor(depth / 2),
+      hp: 4 + effectiveDepth,
+      maxHp: 4 + effectiveDepth,
+      baseAttack: 1 + Math.floor(effectiveDepth / 2),
       baseDefense: 0,
-      level: 1,
+      level: monsterLevel,
       xp: 0,
       gold: 0,
       inventory: [],
@@ -1347,11 +1395,11 @@ function createMonsterForDepth(depth: number, roll: number, rng: Rng, dungeonId:
       glyph: 'g',
       pos: p,
       mapRef: { kind: Mode.Dungeon, dungeonId },
-      hp: 6 + depth * 2,
-      maxHp: 6 + depth * 2,
-      baseAttack: 2 + depth,
-      baseDefense: Math.floor(depth / 3),
-      level: 1,
+      hp: 6 + effectiveDepth * 2,
+      maxHp: 6 + effectiveDepth * 2,
+      baseAttack: 2 + effectiveDepth,
+      baseDefense: Math.floor(effectiveDepth / 3),
+      level: monsterLevel,
       xp: 0,
       gold: 0,
       inventory: [],
@@ -1367,11 +1415,11 @@ function createMonsterForDepth(depth: number, roll: number, rng: Rng, dungeonId:
       glyph: 'w',
       pos: p,
       mapRef: { kind: Mode.Dungeon, dungeonId },
-      hp: 7 + depth * 2,
-      maxHp: 7 + depth * 2,
-      baseAttack: 2 + depth,
-      baseDefense: Math.floor(depth / 3),
-      level: 1,
+      hp: 7 + effectiveDepth * 2,
+      maxHp: 7 + effectiveDepth * 2,
+      baseAttack: 2 + effectiveDepth,
+      baseDefense: Math.floor(effectiveDepth / 3),
+      level: monsterLevel,
       xp: 0,
       gold: 0,
       inventory: [],
@@ -1388,11 +1436,11 @@ function createMonsterForDepth(depth: number, roll: number, rng: Rng, dungeonId:
     glyph: 'O',
     pos: p,
     mapRef: { kind: Mode.Dungeon, dungeonId },
-    hp: 10 + depth * 3,
-    maxHp: 10 + depth * 3,
-    baseAttack: 3 + depth,
-    baseDefense: 1 + Math.floor(depth / 2),
-    level: 1,
+    hp: 10 + effectiveDepth * 3,
+    maxHp: 10 + effectiveDepth * 3,
+    baseAttack: 3 + effectiveDepth,
+    baseDefense: 1 + Math.floor(effectiveDepth / 2),
+    level: Math.max(monsterLevel, 2),
     xp: 0,
     gold: 0,
     inventory: [],
@@ -3094,10 +3142,7 @@ function setDestination(dest: Point): void {
     return;
   }
 
-  const path = overworldNavigator.findPath(state.player.pos, dest, {
-    preferRoads: true,
-    maxNodes: 20000
-  });
+  const path = findOverworldPath(state.player.pos, dest);
 
   if (!path || path.length < 2) {
     state.log.push(t('log.path.none'));
@@ -3109,6 +3154,36 @@ function setDestination(dest: Point): void {
   state.destination = dest;
   state.autoPath = path;
   state.log.push(t('log.autoWalk.set', { x: dest.x, y: dest.y }));
+}
+
+function findOverworldPath(from: Point, to: Point): Point[] | undefined {
+  return overworldNavigator.findPath(from, to, {
+    preferRoads: state.preferRoads,
+    maxNodes: 20000
+  });
+}
+
+function togglePathPreference(): void {
+  state.preferRoads = !state.preferRoads;
+  state.log.push(state.preferRoads ? t('log.autoWalk.mode.roads') : t('log.autoWalk.mode.direct'));
+
+  if (state.mode === Mode.Overworld && state.destination) {
+    const refreshed: Point[] | undefined = findOverworldPath(state.player.pos, state.destination);
+    if (!refreshed || refreshed.length < 2) {
+      state.log.push(t('log.path.none'));
+      state.destination = undefined;
+      state.autoPath = undefined;
+    } else {
+      state.autoPath = refreshed;
+    }
+  }
+
+  render();
+}
+
+function updatePathPreferenceUi(): void {
+  btnPathMode.textContent = state.preferRoads ? t('ui.pathMode.roads') : t('ui.pathMode.direct');
+  btnPathMode.setAttribute('aria-pressed', state.preferRoads ? 'true' : 'false');
 }
 
 /**
@@ -3297,6 +3372,8 @@ function render(): void {
  * Renders the minimap overlay.
  */
 function renderMinimap(): void {
+  updatePathPreferenceUi();
+
   if (!minimapCtx) {
     return;
   }
@@ -3852,6 +3929,10 @@ btnMap.addEventListener('click', () => {
   handleAction({ kind: ActionKind.ToggleMap });
 });
 
+btnPathMode.addEventListener('click', () => {
+  togglePathPreference();
+});
+
 classButtons.forEach((btn) => {
   btn.addEventListener('click', () => {
     const choice = btn.dataset.class as CharacterClass | undefined;
@@ -3887,6 +3968,14 @@ btnNameRandom.addEventListener('click', () => {
   nameErrorEl.textContent = '';
   nameInput.focus();
   nameInput.select();
+});
+
+genderRadios.forEach((radio) => {
+  radio.addEventListener('change', () => {
+    if (radio.checked) {
+      pendingGender = radio.value as Gender;
+    }
+  });
 });
 
 btnLoadFromModal.addEventListener('click', () => {
@@ -3951,7 +4040,8 @@ function buildSaveData(): SaveDataV3 {
     townId: state.currentTownId,
     activePanel: state.activePanel,
     turnCounter: state.turnCounter,
-    quests: state.quests
+    quests: state.quests,
+    preferRoads: state.preferRoads
   };
 }
 
@@ -4032,7 +4122,8 @@ function applyLoadedSave(data: SaveDataV3): boolean {
     mapCursor: { x: 0, y: 0 },
     destination: undefined,
     autoPath: undefined,
-    log: new MessageLog(160)
+    log: new MessageLog(160),
+    preferRoads: data.preferRoads ?? true
   };
   overworldNavigator = new OverworldNavigator(state.overworld);
   combat.setState(state);

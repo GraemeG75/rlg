@@ -55,6 +55,9 @@ export const en: Record<string, string> = {
   'ui.overworld.hint':
     'Overworld: {dungeonKey} dungeons, {caveKey} caves, {townKey} towns, {roadKey} roads. Press {mapKey} to toggle the minimap. Dungeons have levels ({downKey}/{upKey}). Monsters use A* pathing when they can see you.',
   'ui.map.unavailable': 'Map unavailable here',
+  'ui.pathMode.label': 'Path preference',
+  'ui.pathMode.roads': 'Prefer roads',
+  'ui.pathMode.direct': 'Direct route',
   'ui.classSelect.title': 'Select Your Adventurer',
   'ui.classSelect.subtitle': 'Each hero fights differently. Pick the style that suits you.',
   'ui.classSelect.load': 'Load Saved Game',
@@ -207,6 +210,8 @@ export const en: Record<string, string> = {
   'log.map.open': 'Minimap shown.',
   'log.map.closed': 'Minimap hidden.',
   'log.autoWalk.cancel': 'Auto-walk canceled.',
+  'log.autoWalk.mode.roads': 'Auto-walk will prefer roads.',
+  'log.autoWalk.mode.direct': 'Auto-walk will take the direct route.',
   'log.quest.find': 'Visit the tavern to check bounties.',
   'log.help':
     'Keys: WASD/Arrows move • Shift+Move run (overworld) • M map • Enter use • I inventory • B shop (shop) • Q quests (tavern) • H story • G pick up • R renderer (iso) • F FOV • P save • O load.',

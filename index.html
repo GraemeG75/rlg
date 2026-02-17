@@ -324,6 +324,46 @@
       select.btnTiny {
         appearance: none;
       }
+      .radioGroup {
+        display: flex;
+        gap: 8px;
+        flex-wrap: wrap;
+      }
+      .radioOption {
+        position: relative;
+        display: inline-flex;
+        align-items: center;
+      }
+      .radioOption input {
+        position: absolute;
+        opacity: 0;
+        pointer-events: none;
+      }
+      .radioOption span {
+        display: inline-block;
+        padding: 6px 10px;
+        border-radius: 10px;
+        border: 1px solid var(--panel-edge);
+        background: linear-gradient(180deg, #2e2217, #20160f);
+        color: var(--text);
+        font-family: Georgia, 'Times New Roman', serif;
+        letter-spacing: 0.02em;
+        box-shadow: 0 2px 0 rgba(0, 0, 0, 0.25);
+        cursor: pointer;
+        transition:
+          filter 0.15s ease,
+          border-color 0.15s ease,
+          box-shadow 0.15s ease;
+      }
+      .radioOption span:hover {
+        filter: brightness(1.1);
+        border-color: #5a4228;
+      }
+      .radioOption input:checked + span {
+        border-color: var(--accent);
+        box-shadow: 0 0 0 1px rgba(215, 180, 106, 0.45);
+        filter: brightness(1.08);
+      }
       button:hover {
         filter: brightness(1.1);
         border-color: #5a4228;
@@ -605,6 +645,11 @@
       a {
         color: #f1d7a1;
       }
+      .minimapControls {
+        justify-content: space-between;
+        align-items: center;
+        margin-bottom: 6px;
+      }
       @media (max-width: 1500px) {
         .wrap {
           grid-template-columns: 1fr;
@@ -720,6 +765,16 @@
             class="small">
             Map
           </div>
+          <div class="row small minimapControls">
+            <span
+              id="pathModeLabel"
+              class="muted"></span>
+            <button
+              id="btnPathMode"
+              class="btnTiny"
+              type="button"
+              title="Toggle path mode"></button>
+          </div>
           <canvas
             id="minimap"
             width="240"
@@ -776,16 +831,40 @@
           <label
             class="small"
             id="genderLabel"
-            for="genderSelect"
+            for="genderFemale"
             >Gender</label
           >
-          <select
-            id="genderSelect"
-            class="btnTiny">
-            <option value="female">Female</option>
-            <option value="male">Male</option>
-            <option value="nonbinary">Non-binary</option>
-          </select>
+          <div
+            id="genderOptions"
+            class="radioGroup"
+            role="radiogroup"
+            aria-labelledby="genderLabel">
+            <label class="radioOption">
+              <input
+                type="radio"
+                id="genderFemale"
+                name="genderOption"
+                value="female"
+                checked />
+              <span data-gender-option="female">Female</span>
+            </label>
+            <label class="radioOption">
+              <input
+                type="radio"
+                id="genderMale"
+                name="genderOption"
+                value="male" />
+              <span data-gender-option="male">Male</span>
+            </label>
+            <label class="radioOption">
+              <input
+                type="radio"
+                id="genderNonbinary"
+                name="genderOption"
+                value="nonbinary" />
+              <span data-gender-option="nonbinary">Non-binary</span>
+            </label>
+          </div>
         </div>
         <div class="sep"></div>
         <div class="classGrid">

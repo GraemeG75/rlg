@@ -29,6 +29,7 @@ export type SaveDataV3 = {
 
   // UI state (optional)
   activePanel: PanelMode;
+  preferRoads?: boolean;
 };
 
 /**
