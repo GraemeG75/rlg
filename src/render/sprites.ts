@@ -336,15 +336,15 @@ export class SpriteAtlas {
 
     this.sprites.set(
       'it_potion',
-      this.make((c) => this.glyph(c, '!', '#f2b36d'))
+      this.make((c) => this.potionIcon(c))
     );
     this.sprites.set(
       'it_weapon',
-      this.make((c) => this.glyph(c, ')', '#d9c1a3'))
+      this.make((c) => this.weaponIcon(c))
     );
     this.sprites.set(
       'it_armor',
-      this.make((c) => this.glyph(c, ']', '#c7b6a1'))
+      this.make((c) => this.armorIcon(c))
     );
 
     // UI overlay
@@ -390,6 +390,123 @@ export class SpriteAtlas {
     g.imageSmoothingEnabled = false;
     g.drawImage(img, sx, sy, sw, sh, 0, 0, this.tileSize, this.tileSize);
     return c;
+  }
+
+  private potionIcon(ctx: CanvasRenderingContext2D): void {
+    const s: number = this.tileSize;
+    const cx: number = s * 0.5;
+    const neckW: number = s * 0.22;
+    const neckH: number = s * 0.18;
+    const bodyW: number = s * 0.5;
+    const bodyH: number = s * 0.44;
+    const neckX: number = cx - neckW / 2;
+    const neckY: number = s * 0.12;
+    const bodyX: number = cx - bodyW / 2;
+    const bodyY: number = neckY + neckH - s * 0.02;
+
+    ctx.clearRect(0, 0, s, s);
+
+    ctx.fillStyle = '#c7b6a1';
+    ctx.fillRect(neckX - s * 0.02, neckY - s * 0.08, neckW + s * 0.04, s * 0.08);
+
+    ctx.fillStyle = '#b46c3c';
+    ctx.fillRect(neckX, neckY - s * 0.06, neckW, s * 0.06);
+
+    ctx.fillStyle = '#d9cdd3';
+    ctx.fillRect(neckX, neckY, neckW, neckH);
+
+    ctx.fillStyle = '#d36d5e';
+    ctx.beginPath();
+    ctx.ellipse(cx, bodyY + bodyH * 0.6, bodyW * 0.5, bodyH * 0.4, 0, 0, Math.PI * 2);
+    ctx.fill();
+
+    ctx.fillStyle = '#f08b78';
+    ctx.beginPath();
+    ctx.ellipse(cx - bodyW * 0.08, bodyY + bodyH * 0.58, bodyW * 0.38, bodyH * 0.3, 0, 0, Math.PI * 2);
+    ctx.fill();
+
+    ctx.fillStyle = '#f4e6e0';
+    ctx.beginPath();
+    ctx.ellipse(cx, bodyY + bodyH * 0.38, bodyW * 0.5, bodyH * 0.5, 0, Math.PI, 0);
+    ctx.lineTo(bodyX, bodyY + bodyH * 0.6);
+    ctx.closePath();
+    ctx.fill();
+
+    ctx.strokeStyle = '#6b4a3c';
+    ctx.lineWidth = Math.max(1, Math.floor(s * 0.05));
+    ctx.strokeRect(neckX, neckY, neckW, neckH);
+    ctx.beginPath();
+    ctx.ellipse(cx, bodyY + bodyH * 0.6, bodyW * 0.5, bodyH * 0.4, 0, 0, Math.PI * 2);
+    ctx.stroke();
+
+    ctx.fillStyle = 'rgba(255, 255, 255, 0.45)';
+    ctx.fillRect(neckX + neckW * 0.65, neckY + neckH * 0.15, neckW * 0.15, neckH * 0.7);
+    ctx.beginPath();
+    ctx.ellipse(cx + bodyW * 0.22, bodyY + bodyH * 0.5, bodyW * 0.08, bodyH * 0.18, 0, 0, Math.PI * 2);
+    ctx.fill();
+  }
+
+  private weaponIcon(ctx: CanvasRenderingContext2D): void {
+    const s: number = this.tileSize;
+    const cx: number = s * 0.5;
+    const bladeW: number = s * 0.12;
+    const bladeH: number = s * 0.55;
+    const hiltW: number = s * 0.28;
+    const hiltH: number = s * 0.08;
+    const guardY: number = s * 0.42;
+    const tipY: number = s * 0.12;
+
+    ctx.clearRect(0, 0, s, s);
+
+    ctx.fillStyle = '#d9c1a3';
+    ctx.beginPath();
+    ctx.moveTo(cx, tipY);
+    ctx.lineTo(cx - bladeW, guardY);
+    ctx.lineTo(cx + bladeW, guardY);
+    ctx.closePath();
+    ctx.fill();
+    ctx.fillRect(cx - bladeW * 0.6, guardY, bladeW * 1.2, bladeH);
+
+    ctx.fillStyle = '#6b4a3c';
+    ctx.fillRect(cx - hiltW / 2, guardY + hiltH * 0.2, hiltW, hiltH);
+    ctx.fillRect(cx - bladeW * 0.4, guardY + bladeH, bladeW * 0.8, s * 0.18);
+    ctx.beginPath();
+    ctx.ellipse(cx, guardY + bladeH + s * 0.18, bladeW * 0.8, bladeW * 0.8, 0, 0, Math.PI * 2);
+    ctx.fill();
+
+    ctx.fillStyle = 'rgba(255, 255, 255, 0.4)';
+    ctx.fillRect(cx + bladeW * 0.1, guardY + s * 0.02, bladeW * 0.25, bladeH * 0.5);
+  }
+
+  private armorIcon(ctx: CanvasRenderingContext2D): void {
+    const s: number = this.tileSize;
+    const cx: number = s * 0.5;
+    const chestW: number = s * 0.6;
+    const chestH: number = s * 0.52;
+    const chestX: number = cx - chestW / 2;
+    const chestY: number = s * 0.2;
+    const shoulderW: number = s * 0.22;
+    const shoulderH: number = s * 0.16;
+
+    ctx.clearRect(0, 0, s, s);
+
+    ctx.fillStyle = '#c7b6a1';
+    ctx.fillRect(chestX, chestY, chestW, chestH);
+    ctx.fillRect(chestX - shoulderW * 0.4, chestY, shoulderW, shoulderH);
+    ctx.fillRect(chestX + chestW - shoulderW * 0.6, chestY, shoulderW, shoulderH);
+
+    ctx.fillStyle = '#9d8a75';
+    ctx.fillRect(chestX, chestY + chestH * 0.45, chestW, chestH * 0.1);
+    ctx.fillRect(cx - chestW * 0.06, chestY + chestH * 0.1, chestW * 0.12, chestH * 0.8);
+
+    ctx.strokeStyle = '#6b4a3c';
+    ctx.lineWidth = Math.max(1, Math.floor(s * 0.05));
+    ctx.strokeRect(chestX, chestY, chestW, chestH);
+    ctx.strokeRect(chestX - shoulderW * 0.4, chestY, shoulderW, shoulderH);
+    ctx.strokeRect(chestX + chestW - shoulderW * 0.6, chestY, shoulderW, shoulderH);
+
+    ctx.fillStyle = 'rgba(255, 255, 255, 0.35)';
+    ctx.fillRect(chestX + chestW * 0.1, chestY + chestH * 0.08, chestW * 0.08, chestH * 0.6);
   }
 
   /**
