@@ -1,0 +1,262 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="304" height="80" viewBox="0 0 304 80" shape-rendering="crispEdges">
+    <defs>
+        <linearGradient id="waterDeep" x1="0" y1="0" x2="0" y2="1">
+            <stop offset="0" stop-color="#0b2235" />
+            <stop offset="1" stop-color="#0a1a28" />
+        </linearGradient>
+        <linearGradient id="waterShallow" x1="0" y1="0" x2="0" y2="1">
+            <stop offset="0" stop-color="#143856" />
+            <stop offset="1" stop-color="#0e2b42" />
+        </linearGradient>
+        <linearGradient id="grassBase" x1="0" y1="0" x2="0" y2="1">
+            <stop offset="0" stop-color="#2d5a34" />
+            <stop offset="1" stop-color="#1f3a24" />
+        </linearGradient>
+        <linearGradient id="mountainRock" x1="0" y1="0" x2="0" y2="1">
+            <stop offset="0" stop-color="#6f6a5d" />
+            <stop offset="1" stop-color="#3d3a33" />
+        </linearGradient>
+        <linearGradient id="roadDust" x1="0" y1="0" x2="0" y2="1">
+            <stop offset="0" stop-color="#9a7b4f" />
+            <stop offset="1" stop-color="#7b5c3a" />
+        </linearGradient>
+        <linearGradient id="townDirt" x1="0" y1="0" x2="0" y2="1">
+            <stop offset="0" stop-color="#4a3b2d" />
+            <stop offset="1" stop-color="#3a2f25" />
+        </linearGradient>
+        <linearGradient id="townStone" x1="0" y1="0" x2="0" y2="1">
+            <stop offset="0" stop-color="#c8b596" />
+            <stop offset="1" stop-color="#9e8b72" />
+        </linearGradient>
+        <linearGradient id="dungeonRuins" x1="0" y1="0" x2="0" y2="1">
+            <stop offset="0" stop-color="#2b3642" />
+            <stop offset="1" stop-color="#1c232b" />
+        </linearGradient>
+        <linearGradient id="dungeonCaves" x1="0" y1="0" x2="0" y2="1">
+            <stop offset="0" stop-color="#2c3a2d" />
+            <stop offset="1" stop-color="#1b241b" />
+        </linearGradient>
+        <linearGradient id="dungeonCrypt" x1="0" y1="0" x2="0" y2="1">
+            <stop offset="0" stop-color="#35203a" />
+            <stop offset="1" stop-color="#1c111f" />
+        </linearGradient>
+    </defs>
+
+    <!-- Row 0: overworld terrain + towns + entrances -->
+    <g transform="translate(0 0)">
+        <rect width="16" height="16" fill="url(#waterDeep)" />
+        <path d="M0 6h16M0 10h16" stroke="#0f314c" stroke-width="1" />
+        <path d="M2 4h4M9 8h5M3 12h6" stroke="#144a73" stroke-width="1" />
+    </g>
+
+    <g transform="translate(16 0)">
+        <rect width="16" height="16" fill="url(#waterShallow)" />
+        <path d="M0 5h16M0 9h16" stroke="#1c4f78" stroke-width="1" />
+        <path d="M2 3h5M8 7h6M4 12h7" stroke="#2f6f9d" stroke-width="1" />
+    </g>
+
+    <g transform="translate(32 0)">
+        <rect width="16" height="16" fill="url(#grassBase)" />
+        <path d="M2 12l2-2M5 10l2-2M9 12l2-3M12 11l2-2" stroke="#3c6b3f" stroke-width="1" />
+        <path d="M1 5l2 1M6 6l2 1M10 5l2 1" stroke="#2a4a2f" stroke-width="1" />
+    </g>
+
+    <g transform="translate(48 0)">
+        <rect width="16" height="16" fill="#0e2a1b" />
+    </g>
+
+    <g transform="translate(64 0)">
+        <rect width="16" height="16" fill="#3a3f46" />
+    </g>
+
+    <g transform="translate(80 0)">
+        <rect width="16" height="16" fill="#4a515b" />
+    </g>
+
+    <g transform="translate(96 0)">
+        <rect width="16" height="16" fill="#7b5c3a" />
+    </g>
+
+    <g transform="translate(112 0)">
+        <rect width="16" height="16" fill="#d9c7a6" />
+    </g>
+
+    <g transform="translate(128 0)">
+        <rect width="16" height="16" fill="#4a3b2d" />
+    </g>
+
+    <g transform="translate(144 0)">
+        <rect width="16" height="16" fill="#9b7c54" />
+    </g>
+
+    <g transform="translate(160 0)">
+        <rect width="16" height="16" fill="#c8b596" />
+    </g>
+
+    <g transform="translate(176 0)">
+        <rect width="16" height="16" fill="#e0d0b4" />
+    </g>
+
+    <g transform="translate(192 0)">
+        <rect width="16" height="16" fill="#dcc4a4" />
+    </g>
+
+    <g transform="translate(208 0)">
+        <rect width="16" height="16" fill="#d6c1a6" />
+    </g>
+
+    <g transform="translate(224 0)">
+        <rect width="16" height="16" fill="#dcc9ad" />
+    </g>
+
+    <g transform="translate(240 0)">
+        <rect width="16" height="16" fill="#5b6573" />
+    </g>
+
+    <g transform="translate(256 0)">
+        <rect width="16" height="16" fill="#b89a74" />
+    </g>
+
+    <g transform="translate(272 0)">
+        <rect width="16" height="16" fill="#d2b996" />
+    </g>
+
+    <g transform="translate(288 0)">
+        <rect width="16" height="16" fill="#3a3f46" />
+    </g>
+
+    <!-- Row 1: town interior -->
+    <g transform="translate(0 16)">
+        <rect width="16" height="16" fill="#221d18" />
+        <rect x="4" y="6" width="1" height="1" fill="#3a3026" />
+        <rect x="10" y="11" width="1" height="1" fill="#3a3026" />
+    </g>
+
+    <g transform="translate(16 16)">
+        <rect width="16" height="16" fill="#2a2430" />
+        <rect x="2" y="6" width="12" height="4" fill="#4a4256" />
+        <rect x="3" y="7" width="10" height="2" fill="#5a4d68" />
+    </g>
+
+    <g transform="translate(32 16)">
+        <rect width="16" height="16" fill="#2b241d" />
+        <rect x="2" y="6" width="12" height="4" fill="#a88f73" />
+        <rect x="4" y="7" width="2" height="2" fill="#c1a582" />
+        <rect x="10" y="7" width="2" height="2" fill="#c1a582" />
+    </g>
+
+    <g transform="translate(48 16)">
+        <rect width="16" height="16" fill="#2f2924" />
+        <rect x="3" y="3" width="10" height="10" fill="#cdb89a" />
+        <rect x="7" y="7" width="2" height="2" fill="#b9a186" />
+    </g>
+
+    <g transform="translate(64 16)">
+        <rect width="16" height="16" fill="#2a2430" />
+        <rect x="6" y="6" width="4" height="8" fill="#b08d65" />
+        <rect x="7" y="9" width="2" height="3" fill="#1a1410" />
+    </g>
+
+    <g transform="translate(80 16)">
+        <rect width="16" height="16" fill="#1d1a16" />
+        <rect x="3" y="7" width="10" height="6" fill="#d9c1a3" />
+        <rect x="4" y="4" width="8" height="4" fill="#2b1f16" />
+        <rect x="7" y="9" width="2" height="4" fill="#1a1410" />
+    </g>
+
+    <g transform="translate(96 16)">
+        <rect width="16" height="16" fill="#1d1a16" />
+        <rect x="3" y="7" width="10" height="6" fill="#cfb592" />
+        <rect x="4" y="4" width="8" height="4" fill="#3a2a1d" />
+        <rect x="7" y="9" width="2" height="4" fill="#1a1410" />
+    </g>
+
+    <g transform="translate(112 16)">
+        <rect width="16" height="16" fill="#1d1a16" />
+        <rect x="3" y="7" width="10" height="6" fill="#c3b6a9" />
+        <rect x="4" y="4" width="8" height="4" fill="#1f232b" />
+        <rect x="7" y="9" width="2" height="4" fill="#13151b" />
+    </g>
+
+    <g transform="translate(128 16)">
+        <rect width="16" height="16" fill="#1d1a16" />
+        <rect x="3" y="7" width="10" height="6" fill="#dcc9ad" />
+        <rect x="4" y="4" width="8" height="4" fill="#3f2e25" />
+        <rect x="7" y="9" width="2" height="4" fill="#1a1410" />
+    </g>
+
+    <!-- Row 2: dungeon ruins -->
+    <g transform="translate(0 32)">
+        <rect width="16" height="16" fill="url(#dungeonRuins)" />
+        <rect x="2" y="3" width="5" height="2" fill="#3c4b5f" />
+        <rect x="9" y="10" width="5" height="2" fill="#3c4b5f" />
+    </g>
+
+    <g transform="translate(16 32)">
+        <rect width="16" height="16" fill="#151c24" />
+        <rect x="4" y="4" width="1" height="1" fill="#2f3c4b" />
+        <rect x="11" y="11" width="1" height="1" fill="#2f3c4b" />
+    </g>
+
+    <g transform="translate(32 32)">
+        <rect width="16" height="16" fill="#151c24" />
+        <rect x="3" y="3" width="10" height="10" fill="#1f2a35" />
+        <path d="M8 3l5 5-5 5-5-5z" stroke="#b38d4f" stroke-width="1" fill="none" />
+        <rect x="7" y="7" width="2" height="2" fill="#b38d4f" />
+    </g>
+
+    <g transform="translate(48 32)">
+        <rect width="16" height="16" fill="#15243a" />
+        <path d="M4 4h8M5 6h6M6 8h4" stroke="#cfe3ff" stroke-width="1" />
+    </g>
+
+    <!-- Row 3: dungeon caves -->
+    <g transform="translate(0 48)">
+        <rect width="16" height="16" fill="url(#dungeonCaves)" />
+        <rect x="2" y="3" width="5" height="2" fill="#3a4b3b" />
+        <rect x="9" y="10" width="5" height="2" fill="#3a4b3b" />
+    </g>
+
+    <g transform="translate(16 48)">
+        <rect width="16" height="16" fill="#121a12" />
+        <rect x="4" y="4" width="1" height="1" fill="#2b3a2b" />
+        <rect x="11" y="11" width="1" height="1" fill="#2b3a2b" />
+    </g>
+
+    <g transform="translate(32 48)">
+        <rect width="16" height="16" fill="#121a12" />
+        <rect x="3" y="3" width="10" height="10" fill="#1b261c" />
+        <path d="M8 3l5 5-5 5-5-5z" stroke="#7fa974" stroke-width="1" fill="none" />
+        <rect x="7" y="7" width="2" height="2" fill="#7fa974" />
+    </g>
+
+    <g transform="translate(48 48)">
+        <rect width="16" height="16" fill="#17301a" />
+        <path d="M4 4h8M5 6h6M6 8h4" stroke="#cfe3ff" stroke-width="1" />
+    </g>
+
+    <!-- Row 4: dungeon crypt -->
+    <g transform="translate(0 64)">
+        <rect width="16" height="16" fill="url(#dungeonCrypt)" />
+        <rect x="2" y="3" width="5" height="2" fill="#4b2f57" />
+        <rect x="9" y="10" width="5" height="2" fill="#4b2f57" />
+    </g>
+
+    <g transform="translate(16 64)">
+        <rect width="16" height="16" fill="#170d19" />
+        <rect x="4" y="4" width="1" height="1" fill="#2e1a33" />
+        <rect x="11" y="11" width="1" height="1" fill="#2e1a33" />
+    </g>
+
+    <g transform="translate(32 64)">
+        <rect width="16" height="16" fill="#170d19" />
+        <rect x="3" y="3" width="10" height="10" fill="#231526" />
+        <path d="M8 3l5 5-5 5-5-5z" stroke="#b07bd6" stroke-width="1" fill="none" />
+        <rect x="7" y="7" width="2" height="2" fill="#b07bd6" />
+    </g>
+
+    <g transform="translate(48 64)">
+        <rect width="16" height="16" fill="#2c1231" />
+        <path d="M4 4h8M5 6h6M6 8h4" stroke="#e6d7ff" stroke-width="1" />
+    </g>
+</svg>

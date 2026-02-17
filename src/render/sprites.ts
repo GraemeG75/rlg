@@ -51,12 +51,66 @@ export type SpriteKey =
   | 'ui_path'
   | 'ui_destination';
 
+type SheetEntry = {
+  key: SpriteKey;
+  x: number;
+  y: number;
+  w?: number;
+  h?: number;
+};
+
+const SPRITE_SHEET_URL: string = '/assets/tiles.svg';
+const SPRITE_SHEET_TILE_SIZE: number = 16;
+const SPRITE_SHEET_TILES: readonly SheetEntry[] = [
+  { key: 'ow_water_deep', x: 0, y: 0 },
+  { key: 'ow_water', x: 16, y: 0 },
+  { key: 'ow_grass', x: 32, y: 0 },
+  { key: 'ow_forest', x: 48, y: 0 },
+  { key: 'ow_mountain', x: 64, y: 0 },
+  { key: 'ow_mountain_snow', x: 80, y: 0 },
+  { key: 'ow_road', x: 96, y: 0 },
+  { key: 'ow_town', x: 112, y: 0 },
+  { key: 'ow_town_ground', x: 128, y: 0 },
+  { key: 'ow_town_road', x: 144, y: 0 },
+  { key: 'ow_town_square', x: 160, y: 0 },
+  { key: 'ow_town_shop', x: 176, y: 0 },
+  { key: 'ow_town_tavern', x: 192, y: 0 },
+  { key: 'ow_town_smith', x: 208, y: 0 },
+  { key: 'ow_town_house', x: 224, y: 0 },
+  { key: 'ow_town_wall', x: 240, y: 0 },
+  { key: 'ow_town_gate', x: 256, y: 0 },
+  { key: 'ow_dungeon', x: 272, y: 0 },
+  { key: 'ow_cave', x: 288, y: 0 },
+  { key: 'tn_floor', x: 0, y: 16 },
+  { key: 'tn_wall', x: 16, y: 16 },
+  { key: 'tn_road', x: 32, y: 16 },
+  { key: 'tn_square', x: 48, y: 16 },
+  { key: 'tn_gate', x: 64, y: 16 },
+  { key: 'tn_shop', x: 80, y: 16 },
+  { key: 'tn_tavern', x: 96, y: 16 },
+  { key: 'tn_smith', x: 112, y: 16 },
+  { key: 'tn_house', x: 128, y: 16 },
+  { key: 'dg_wall_ruins', x: 0, y: 32 },
+  { key: 'dg_floor_ruins', x: 16, y: 32 },
+  { key: 'dg_boss_floor_ruins', x: 32, y: 32 },
+  { key: 'dg_stairs_ruins', x: 48, y: 32 },
+  { key: 'dg_wall_caves', x: 0, y: 48 },
+  { key: 'dg_floor_caves', x: 16, y: 48 },
+  { key: 'dg_boss_floor_caves', x: 32, y: 48 },
+  { key: 'dg_stairs_caves', x: 48, y: 48 },
+  { key: 'dg_wall_crypt', x: 0, y: 64 },
+  { key: 'dg_floor_crypt', x: 16, y: 64 },
+  { key: 'dg_boss_floor_crypt', x: 32, y: 64 },
+  { key: 'dg_stairs_crypt', x: 48, y: 64 }
+] as const;
+
 /**
  * Generates and stores small canvas-based sprites for tiles and entities.
  */
 export class SpriteAtlas {
   private readonly tileSize: number;
   private readonly sprites: Map<SpriteKey, HTMLCanvasElement>;
+  public onUpdate?: () => void;
 
   /**
    * Creates a new atlas for a given tile size.
@@ -66,6 +120,7 @@ export class SpriteAtlas {
     this.tileSize = tileSize;
     this.sprites = new Map<SpriteKey, HTMLCanvasElement>();
     this.buildAll();
+    this.loadSpriteSheet();
   }
 
   /**
@@ -303,6 +358,40 @@ export class SpriteAtlas {
     );
   }
 
+  private loadSpriteSheet(): void {
+    const img = new Image();
+    img.onload = () => {
+      this.replaceFromSheet(img);
+      this.onUpdate?.();
+    };
+    img.onerror = () => {
+      return;
+    };
+    img.src = SPRITE_SHEET_URL;
+  }
+
+  private replaceFromSheet(img: HTMLImageElement): void {
+    for (const entry of SPRITE_SHEET_TILES) {
+      const w = entry.w ?? SPRITE_SHEET_TILE_SIZE;
+      const h = entry.h ?? SPRITE_SHEET_TILE_SIZE;
+      const canvas = this.makeFromSheet(img, entry.x, entry.y, w, h);
+      this.sprites.set(entry.key, canvas);
+    }
+  }
+
+  private makeFromSheet(img: HTMLImageElement, sx: number, sy: number, sw: number, sh: number): HTMLCanvasElement {
+    const c: HTMLCanvasElement = document.createElement('canvas');
+    c.width = this.tileSize;
+    c.height = this.tileSize;
+    const g: CanvasRenderingContext2D | null = c.getContext('2d');
+    if (!g) {
+      return c;
+    }
+    g.imageSmoothingEnabled = false;
+    g.drawImage(img, sx, sy, sw, sh, 0, 0, this.tileSize, this.tileSize);
+    return c;
+  }
+
   /**
    * Creates a sprite canvas and draws with the provided callback.
    * @param draw The draw callback.
@@ -358,13 +447,48 @@ export class SpriteAtlas {
    */
   private patternMountain(ctx: CanvasRenderingContext2D): void {
     this.fill(ctx, '#3a3f46', '#555b63');
+
+    // Large boulder - irregular shape
     ctx.fillStyle = '#9aa1ab';
-    ctx.beginPath();
-    ctx.moveTo(2, 13);
-    ctx.lineTo(7, 4);
-    ctx.lineTo(12, 13);
-    ctx.closePath();
-    ctx.fill();
+    ctx.fillRect(1, 8, 2, 3);
+    ctx.fillRect(2, 7, 3, 1);
+    ctx.fillRect(3, 8, 2, 4);
+    ctx.fillRect(5, 9, 1, 2);
+
+    // Dark side
+    ctx.fillStyle = '#5b636d';
+    ctx.fillRect(4, 9, 2, 3);
+
+    // Darker cracks
+    ctx.fillStyle = '#3a3f46';
+    ctx.fillRect(3, 9, 1, 1);
+    ctx.fillRect(4, 11, 1, 1);
+
+    // Medium rocks cluster
+    ctx.fillStyle = '#8a919b';
+    ctx.fillRect(7, 10, 2, 2);
+    ctx.fillRect(9, 9, 2, 3);
+    ctx.fillRect(11, 10, 2, 2);
+
+    // Dark sides on cluster
+    ctx.fillStyle = '#6b737d';
+    ctx.fillRect(8, 11, 1, 1);
+    ctx.fillRect(10, 10, 1, 2);
+    ctx.fillRect(12, 11, 1, 1);
+
+    // Small scattered rocks
+    ctx.fillStyle = '#9aa1ab';
+    ctx.fillRect(6, 7, 2, 1);
+    ctx.fillRect(11, 7, 2, 2);
+    ctx.fillRect(1, 13, 2, 1);
+    ctx.fillRect(13, 12, 1, 2);
+
+    // Highlights
+    ctx.fillStyle = '#c5cdd7';
+    ctx.fillRect(2, 7, 1, 1);
+    ctx.fillRect(3, 8, 1, 1);
+    ctx.fillRect(9, 9, 1, 1);
+    ctx.fillRect(11, 10, 1, 1);
   }
 
   /**
@@ -373,20 +497,66 @@ export class SpriteAtlas {
    */
   private patternMountainSnow(ctx: CanvasRenderingContext2D): void {
     this.fill(ctx, '#4a515b', '#6b737d');
+
+    // Large boulder - irregular shape
     ctx.fillStyle = '#aab2bc';
-    ctx.beginPath();
-    ctx.moveTo(2, 13);
-    ctx.lineTo(7, 4);
-    ctx.lineTo(12, 13);
-    ctx.closePath();
-    ctx.fill();
+    ctx.fillRect(1, 8, 2, 3);
+    ctx.fillRect(2, 7, 3, 1);
+    ctx.fillRect(3, 8, 2, 4);
+    ctx.fillRect(5, 9, 1, 2);
+
+    // Dark side
+    ctx.fillStyle = '#7b838d';
+    ctx.fillRect(4, 9, 2, 3);
+
+    // Medium rocks cluster
+    ctx.fillStyle = '#9aa1ab';
+    ctx.fillRect(7, 10, 2, 2);
+    ctx.fillRect(9, 9, 2, 3);
+    ctx.fillRect(11, 10, 2, 2);
+
+    // Dark sides on cluster
+    ctx.fillStyle = '#8a919b';
+    ctx.fillRect(8, 11, 1, 1);
+    ctx.fillRect(10, 10, 1, 2);
+    ctx.fillRect(12, 11, 1, 1);
+
+    // Small scattered rocks
+    ctx.fillStyle = '#aab2bc';
+    ctx.fillRect(6, 7, 2, 1);
+    ctx.fillRect(11, 7, 2, 2);
+    ctx.fillRect(1, 13, 2, 1);
+    ctx.fillRect(13, 12, 1, 2);
+
+    // Snow coverage on large boulder
+    ctx.fillStyle = '#f8fcff';
+    ctx.fillRect(2, 7, 3, 1);
+    ctx.fillRect(1, 8, 2, 1);
+    ctx.fillRect(3, 8, 1, 1);
+
+    // Snow on medium rocks
     ctx.fillStyle = '#e6edf5';
-    ctx.beginPath();
-    ctx.moveTo(5, 10);
-    ctx.lineTo(7, 6);
-    ctx.lineTo(9, 10);
-    ctx.closePath();
-    ctx.fill();
+    ctx.fillRect(9, 9, 2, 1);
+    ctx.fillRect(11, 10, 2, 1);
+    ctx.fillRect(7, 10, 1, 1);
+
+    // Snow on small rocks
+    ctx.fillStyle = '#f8fcff';
+    ctx.fillRect(6, 7, 2, 1);
+    ctx.fillRect(11, 7, 2, 1);
+
+    // Bright snow highlights
+    ctx.fillStyle = '#ffffff';
+    ctx.fillRect(2, 7, 1, 1);
+    ctx.fillRect(3, 7, 1, 1);
+    ctx.fillRect(9, 9, 1, 1);
+    ctx.fillRect(11, 10, 1, 1);
+
+    // Snow patches on ground
+    ctx.fillStyle = '#e6edf5';
+    ctx.fillRect(0, 12, 2, 1);
+    ctx.fillRect(6, 12, 1, 1);
+    ctx.fillRect(14, 13, 1, 1);
   }
 
   /**

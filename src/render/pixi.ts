@@ -64,6 +64,7 @@ export class PixiRenderer {
   private viewHeight: number;
   private initialized: boolean;
   private pendingRender?: { ctx: PixiRenderContext; viewWidth: number; viewHeight: number; renderMode: PixiRenderMode };
+  private lastRender?: { ctx: PixiRenderContext; viewWidth: number; viewHeight: number; renderMode: PixiRenderMode };
 
   /**
    * Creates a new PixiRenderer instance.
@@ -73,6 +74,12 @@ export class PixiRenderer {
     this.canvas = canvas;
     this.tileSize = 16;
     this.atlas = new SpriteAtlas(this.tileSize);
+    this.atlas.onUpdate = () => {
+      this.textures.clear();
+      if (this.initialized && this.lastRender) {
+        this.render(this.lastRender.ctx, this.lastRender.viewWidth, this.lastRender.viewHeight, this.lastRender.renderMode);
+      }
+    };
     this.textures = new Map<SpriteKey | string, Texture>();
     this.tileSprites = [];
     this.viewWidth = 0;
@@ -141,6 +148,7 @@ export class PixiRenderer {
    * @returns void
    */
   public render(ctx: PixiRenderContext, viewWidth: number, viewHeight: number, renderMode: PixiRenderMode = 'canvas'): void {
+    this.lastRender = { ctx, viewWidth, viewHeight, renderMode };
     if (!this.initialized) {
       this.pendingRender = { ctx, viewWidth, viewHeight, renderMode };
       return;
@@ -670,7 +678,8 @@ export class PixiRenderer {
     tileHeight: number
   ): Texture {
     const colors = this.isoTileColors(kind, tile, theme);
-    const cacheKey: string = `iso_${kind}_${tile}_${theme ?? 'none'}_${colors.base}_${colors.edge}_${isoTileW}x${isoTileH}_${tileHeight}`;
+    const spriteKey: SpriteKey | undefined = this.isoTileSpriteKey(kind, tile, theme);
+    const cacheKey: string = `iso_${kind}_${tile}_${theme ?? 'none'}_${spriteKey ?? 'none'}_${colors.base}_${colors.edge}_${isoTileW}x${isoTileH}_${tileHeight}`;
     const cached: Texture | undefined = this.textures.get(cacheKey);
     if (cached) {
       return cached;
@@ -694,14 +703,21 @@ export class PixiRenderer {
     ctx.lineTo(w / 2, isoTileH);
     ctx.lineTo(0, isoTileH / 2);
     ctx.closePath();
-    ctx.fillStyle = colors.base;
-    ctx.fill();
+
+    if (spriteKey) {
+      ctx.save();
+      ctx.clip();
+      this.drawIsoTopFromSprite(ctx, spriteKey, isoTileW, isoTileH);
+      ctx.restore();
+    } else {
+      ctx.fillStyle = colors.base;
+      ctx.fill();
+      this.applyIsoTileDetail(ctx, kind, tile, isoTileW, isoTileH);
+    }
 
     ctx.strokeStyle = colors.edge;
     ctx.lineWidth = 1;
     ctx.stroke();
-
-    this.applyIsoTileDetail(ctx, kind, tile, isoTileW, isoTileH);
 
     if (tileHeight > 0) {
       const sideLeft: string = colors.edge;
@@ -731,6 +747,34 @@ export class PixiRenderer {
     return texture;
   }
 
+  private drawIsoTopFromSprite(ctx: CanvasRenderingContext2D, key: SpriteKey, isoTileW: number, isoTileH: number): void {
+    const sprite: HTMLCanvasElement = this.atlas.get(key);
+    const s: number = this.tileSize;
+
+    // Create temporary canvas to pre-rotate sprite 45 degrees
+    const tempCanvas: HTMLCanvasElement = document.createElement('canvas');
+    const diagonal: number = Math.sqrt(2) * s;
+    tempCanvas.width = diagonal;
+    tempCanvas.height = diagonal;
+    const tempCtx: CanvasRenderingContext2D = tempCanvas.getContext('2d')!;
+    tempCtx.imageSmoothingEnabled = false;
+
+    // Rotate sprite 45 degrees around center
+    tempCtx.translate(diagonal / 2, diagonal / 2);
+    tempCtx.rotate(Math.PI / 4);
+    tempCtx.drawImage(sprite, -s / 2, -s / 2, s, s);
+
+    // Now apply isometric scaling without shear to preserve vertical orientation
+    ctx.save();
+    const scaleX: number = isoTileW / diagonal;
+    const scaleY: number = isoTileH / diagonal;
+    ctx.translate(isoTileW / 2, isoTileH / 2);
+    ctx.scale(scaleX, scaleY);
+    ctx.imageSmoothingEnabled = false;
+    ctx.drawImage(tempCanvas, -diagonal / 2, -diagonal / 2, diagonal, diagonal);
+    ctx.restore();
+  }
+
   /**
    * Applies detailed textures to an isometric tile.
    * @param ctx The canvas rendering context.
@@ -747,6 +791,9 @@ export class PixiRenderer {
     isoTileW: number,
     isoTileH: number
   ): void {
+    if (this.isoTileSpriteKey(kind, tile, undefined)) {
+      return;
+    }
     if (kind !== 'overworld') {
       return;
     }
@@ -768,16 +815,29 @@ export class PixiRenderer {
         ctx.fillRect((i * 7) % w, (i * 11) % h, 2, 1);
       }
     } else if (tile === 'forest') {
-      ctx.fillStyle = 'rgba(0, 0, 0, 0.18)';
-      for (let i: number = 0; i < 10; i += 1) {
-        const x: number = (i * 9) % w;
+      ctx.fillStyle = 'rgba(0, 0, 0, 0.22)';
+      for (let i: number = 0; i < 8; i += 1) {
+        const x: number = (i * 11) % w;
         const y: number = (i * 13) % h;
         ctx.fillRect(x, y, 4, 2);
       }
-      ctx.fillStyle = 'rgba(255, 255, 255, 0.08)';
-      for (let i: number = 0; i < 8; i += 1) {
-        ctx.fillRect((i * 11) % w, (i * 17) % h, 2, 2);
-      }
+      // Simple tree silhouettes.
+      ctx.fillStyle = 'rgba(22, 52, 30, 0.85)';
+      ctx.beginPath();
+      ctx.moveTo(w * 0.25, h * 0.7);
+      ctx.lineTo(w * 0.35, h * 0.4);
+      ctx.lineTo(w * 0.45, h * 0.7);
+      ctx.closePath();
+      ctx.fill();
+      ctx.beginPath();
+      ctx.moveTo(w * 0.55, h * 0.65);
+      ctx.lineTo(w * 0.65, h * 0.35);
+      ctx.lineTo(w * 0.75, h * 0.65);
+      ctx.closePath();
+      ctx.fill();
+      ctx.fillStyle = 'rgba(56, 38, 24, 0.8)';
+      ctx.fillRect(w * 0.32, h * 0.68, w * 0.03, h * 0.12);
+      ctx.fillRect(w * 0.62, h * 0.64, w * 0.03, h * 0.13);
     } else if (tile === 'water' || tile === 'water_deep') {
       ctx.strokeStyle = 'rgba(255, 255, 255, 0.12)';
       ctx.lineWidth = 1;
@@ -907,6 +967,93 @@ export class PixiRenderer {
       case 'floor':
       default:
         return { base: palette.floor, edge: '#2a3340' };
+    }
+  }
+
+  private isoTileSpriteKey(kind: 'overworld' | 'dungeon' | 'town', tile: string, theme: DungeonTheme | undefined): SpriteKey | undefined {
+    if (kind === 'overworld') {
+      switch (tile) {
+        case 'water':
+          return 'ow_water';
+        case 'water_deep':
+          return 'ow_water_deep';
+        case 'grass':
+          return 'ow_grass';
+        case 'forest':
+          return 'ow_forest';
+        case 'mountain':
+          return 'ow_mountain';
+        case 'mountain_snow':
+          return 'ow_mountain_snow';
+        case 'road':
+          return 'ow_road';
+        case 'town_ground':
+          return 'ow_town_ground';
+        case 'town_road':
+          return 'ow_town_road';
+        case 'town_square':
+          return 'ow_town_square';
+        case 'town_shop':
+          return 'ow_town_shop';
+        case 'town_tavern':
+          return 'ow_town_tavern';
+        case 'town_smith':
+          return 'ow_town_smith';
+        case 'town_house':
+          return 'ow_town_house';
+        case 'town_wall':
+          return 'ow_town_wall';
+        case 'town_gate':
+          return 'ow_town_gate';
+        case 'dungeon':
+          return 'ow_dungeon';
+        case 'cave':
+          return 'ow_cave';
+        case 'town':
+          return 'ow_town';
+        default:
+          return undefined;
+      }
+    }
+
+    if (kind === 'town') {
+      switch (tile) {
+        case 'floor':
+          return 'tn_floor';
+        case 'wall':
+          return 'tn_wall';
+        case 'road':
+          return 'tn_road';
+        case 'square':
+          return 'tn_square';
+        case 'gate':
+          return 'tn_gate';
+        case 'shop':
+          return 'tn_shop';
+        case 'tavern':
+          return 'tn_tavern';
+        case 'smith':
+          return 'tn_smith';
+        case 'house':
+          return 'tn_house';
+        default:
+          return undefined;
+      }
+    }
+
+    const suffix: string = theme === 'caves' ? 'caves' : theme === 'crypt' ? 'crypt' : 'ruins';
+    switch (tile) {
+      case 'wall':
+        return `dg_wall_${suffix}` as SpriteKey;
+      case 'floor':
+        return `dg_floor_${suffix}` as SpriteKey;
+      case 'bossFloor':
+        return `dg_boss_floor_${suffix}` as SpriteKey;
+      case 'stairsUp':
+      case 'stairsDown':
+        return `dg_stairs_${suffix}` as SpriteKey;
+      default:
+        return undefined;
     }
   }
 
