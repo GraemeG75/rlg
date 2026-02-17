@@ -59,5 +59,5 @@ export const OVERWORLD_HEIGHT = {
   mountainSnowMultiplier: 2
 };
 
-export const RENDER_TILE_SIZE: number = 24;
+export const RENDER_TILE_SIZE: number = 16;
 export const RENDER_RESOLUTION: number = 1;
