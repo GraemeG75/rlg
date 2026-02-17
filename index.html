@@ -555,6 +555,48 @@
       .saveModalOverlay.hidden {
         display: none;
       }
+      .deathOverlay {
+        position: fixed;
+        inset: 0;
+        background: rgba(15, 10, 7, 0.92);
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        z-index: 1100;
+        padding: 20px;
+      }
+      .deathOverlay.hidden {
+        display: none;
+      }
+      .deathCard {
+        background: linear-gradient(180deg, var(--panel), var(--panel-highlight));
+        border: 1px solid var(--panel-edge);
+        border-radius: 14px;
+        padding: 24px;
+        width: min(760px, 92%);
+        box-shadow: 0 18px 40px rgba(0, 0, 0, 0.45);
+        display: grid;
+        gap: 12px;
+      }
+      .deathBanner {
+        font-size: 26px;
+        text-transform: uppercase;
+        letter-spacing: 0.12em;
+        color: #f3d39a;
+      }
+      .deathStory {
+        background: #15100b;
+        border: 1px solid var(--panel-edge);
+        border-radius: 10px;
+        padding: 12px;
+        max-height: 320px;
+        overflow: auto;
+      }
+      .deathActions {
+        display: flex;
+        justify-content: flex-end;
+        gap: 8px;
+      }
       .saveModalCard {
         background: linear-gradient(180deg, var(--panel), var(--panel-highlight));
         border: 1px solid var(--panel-edge);
@@ -927,6 +969,31 @@
             id="btnSaveModalClose"
             type="button">
             Close
+          </button>
+        </div>
+      </div>
+    </div>
+
+    <div
+      id="deathOverlay"
+      class="deathOverlay hidden">
+      <div class="deathCard">
+        <div
+          id="deathBanner"
+          class="deathBanner">
+          YOU HAVE FALLEN
+        </div>
+        <div
+          id="deathSubtitle"
+          class="small muted"></div>
+        <div
+          id="deathStory"
+          class="deathStory"></div>
+        <div class="deathActions">
+          <button
+            id="btnNewGame"
+            type="button">
+            Try Again
           </button>
         </div>
       </div>

@@ -97,6 +97,10 @@ type GameState = {
 
   log: MessageLog;
   preferRoads: boolean;
+
+  deathCause?: string;
+  deathTurn?: number;
+  deathDepth?: number;
 };
 
 type ClassConfig = {
@@ -902,6 +906,11 @@ const saveJsonText: HTMLTextAreaElement = document.getElementById('saveJsonText'
 const btnSaveModalCopy: HTMLButtonElement = document.getElementById('btnSaveModalCopy') as HTMLButtonElement;
 const btnSaveModalLoad: HTMLButtonElement = document.getElementById('btnSaveModalLoad') as HTMLButtonElement;
 const btnSaveModalClose: HTMLButtonElement = document.getElementById('btnSaveModalClose') as HTMLButtonElement;
+const deathOverlay: HTMLElement = document.getElementById('deathOverlay')!;
+const deathBannerEl: HTMLElement = document.getElementById('deathBanner')!;
+const deathSubtitleEl: HTMLElement = document.getElementById('deathSubtitle')!;
+const deathStoryEl: HTMLElement = document.getElementById('deathStory')!;
+const btnNewGame: HTMLButtonElement = document.getElementById('btnNewGame') as HTMLButtonElement;
 
 type SaveModalMode = 'export' | 'import';
 let saveModalMode: SaveModalMode = 'export';
@@ -1004,6 +1013,9 @@ function applyStaticI18n(): void {
   btnSaveModalCopy.textContent = t('ui.saveModal.copy');
   btnSaveModalLoad.textContent = t('ui.saveModal.load');
   btnSaveModalClose.textContent = t('ui.saveModal.close');
+
+  deathBannerEl.textContent = t('ui.death.banner');
+  btnNewGame.textContent = t('ui.death.continue');
 }
 
 applyStaticI18n();
@@ -1151,7 +1163,10 @@ function newGame(worldSeed: number, classChoice: CharacterClass, gender: Gender,
     destination: undefined,
     autoPath: undefined,
     log: new MessageLog(160),
-    preferRoads: true
+    preferRoads: true,
+    deathCause: undefined,
+    deathTurn: undefined,
+    deathDepth: undefined
   };
 
   state.log.push(t('log.welcome'));
@@ -1995,6 +2010,9 @@ function applyStatusEffectsStartOfTurn(s: GameState): void {
   for (const eff of effects) {
     if (eff.kind === StatusEffectKind.Poison) {
       s.player.hp -= eff.potency;
+      if (s.player.hp < 0) {
+        s.player.hp = 0;
+      }
       s.log.push(t('log.poison.tick', { dmg: eff.potency, hp: Math.max(0, s.player.hp), maxHp: s.player.maxHp }));
     }
     eff.remainingTurns -= 1;
@@ -2374,10 +2392,59 @@ function checkAmbushCompletion(): void {
 }
 
 /**
+ * Triggers the player death sequence.
+ */
+function triggerPlayerDeath(): void {
+  if (state.mode === Mode.Dead) {
+    return;
+  }
+  const currentDepth: number = state.dungeonStack[state.dungeonStack.length - 1]?.depth ?? 0;
+  const lastMonster: string = state.log.all().length > 0 ? state.log.all()[state.log.all().length - 1].text : 'an unknown foe';
+
+  state.mode = Mode.Dead;
+  state.deathCause = lastMonster;
+  state.deathTurn = state.turnCounter;
+  state.deathDepth = currentDepth;
+
+  state.log.push(t('log.death.died', { turn: state.deathTurn, depth: currentDepth }));
+  canvasRenderer.triggerBannerEffect(t('ui.death.banner'), 1800);
+  runFxRenderLoop(1800);
+}
+
+function buildDeathStoryHtml(): string {
+  const story: CharacterStory = state.story;
+  const lines: string[] = [];
+
+  lines.push(`<div class="panelSectionTitle">${escapeHtml(t('story.section.origin'))}</div>`);
+  lines.push(`<div class="small">${escapeHtml(story.origin)}</div>`);
+  lines.push(`<div class="panelSectionTitle marginTop10">${escapeHtml(t('story.section.upbringing'))}</div>`);
+  lines.push(`<div class="small">${escapeHtml(story.upbringing)}</div>`);
+  lines.push(`<div class="panelSectionTitle marginTop10">${escapeHtml(t('story.section.turningPoint'))}</div>`);
+  lines.push(`<div class="small">${escapeHtml(story.turningPoint)}</div>`);
+  lines.push(`<div class="panelSectionTitle marginTop10">${escapeHtml(t('story.section.ambitions'))}</div>`);
+  lines.push(`<div class="small">${escapeHtml(story.ambitions)}</div>`);
+
+  if (story.events.length > 0) {
+    lines.push(`<div class="sep"></div>`);
+    lines.push(`<div class="panelSectionTitle">${escapeHtml(t('story.section.timeline'))}</div>`);
+    for (const ev of story.events.slice().reverse().slice(0, 24)) {
+      lines.push(`<div class="small"><b>${escapeHtml(ev.title)}</b> <span class="muted">• ${escapeHtml(ev.detail)}</span></div>`);
+    }
+  }
+
+  return lines.join('');
+}
+
+/**
  * Handles a player action and advances the turn.
  * @param action The action to handle.
  */
 function handleAction(action: Action): void {
+  if (state.mode === Mode.Dead) {
+    render();
+    return;
+  }
+
   if (action.kind === ActionKind.ToggleRenderer) {
     state.rendererMode = state.rendererMode === PixiRenderMode.Isometric ? PixiRenderMode.Canvas : PixiRenderMode.Isometric;
     state.log.push(state.rendererMode === PixiRenderMode.Isometric ? t('log.renderer.iso') : t('log.renderer.topdown'));
@@ -2488,6 +2555,7 @@ function handleAction(action: Action): void {
   state.turnCounter += 1;
   applyStatusEffectsStartOfTurn(state);
   if (state.player.hp <= 0) {
+    triggerPlayerDeath();
     render();
     return;
   }
@@ -2503,7 +2571,7 @@ function handleAction(action: Action): void {
   checkAmbushCompletion();
 
   if (state.player.hp <= 0) {
-    state.log.push(t('log.death.restart'));
+    triggerPlayerDeath();
   }
 
   render();
@@ -2907,6 +2975,10 @@ class CombatEngine {
     }
 
     defender.hp -= dmg;
+    // Clamp HP to 0 (never negative)
+    if (defender.hp < 0) {
+      defender.hp = 0;
+    }
 
     if (attacker.kind === EntityKind.Player) {
       const lifesteal: number = Math.min(50, this.getEquippedLifesteal(attacker));
@@ -2995,6 +3067,9 @@ class CombatEngine {
     const base: number = 2 + Math.floor(attacker.baseAttack / 2) + state.rng.nextInt(0, 3);
     const dmg: number = Math.max(1, base - Math.floor(def * 0.3));
     defender.hp -= dmg;
+    if (defender.hp < 0) {
+      defender.hp = 0;
+    }
 
     const heal: number = Math.min(attacker.maxHp - attacker.hp, Math.floor(dmg * 0.6));
     if (heal > 0) {
@@ -3475,20 +3550,23 @@ function triggerAmbushBanner(): void {
 function render(): void {
   const dungeon: Dungeon | undefined = getCurrentDungeon(state);
   const town: Town | undefined = getCurrentTown(state);
+  const renderMode: Mode = state.mode === Mode.Dead ? state.player.mapRef.kind : state.mode;
 
   modePill.textContent =
     state.mode === Mode.Overworld
       ? t('ui.mode.overworld')
       : state.mode === Mode.Town
         ? t('ui.mode.town')
-        : t('ui.mode.dungeon', {
-            depth: state.dungeonStack[state.dungeonStack.length - 1]?.depth ?? 0,
-            theme: dungeon?.theme ? t(`theme.${dungeon.theme}`) : '?'
-          });
+        : state.mode === Mode.Dead
+          ? t('ui.mode.dead')
+          : t('ui.mode.dungeon', {
+              depth: state.dungeonStack[state.dungeonStack.length - 1]?.depth ?? 0,
+              theme: dungeon?.theme ? t(`theme.${dungeon.theme}`) : '?'
+            });
 
   renderPill.textContent = t('ui.render.pill', { fov: state.useFov ? t('ui.fov.on') : t('ui.fov.off') });
 
-  if (state.mode === Mode.Dungeon && dungeon && state.useFov) {
+  if (renderMode === Mode.Dungeon && dungeon && state.useFov) {
     const fov: FieldOfView = new FieldOfView(dungeon);
     fov.decayVisibility();
     fov.compute(state.player.pos, 10);
@@ -3587,12 +3665,22 @@ function render(): void {
     <div>• ${escapeHtml(t('ui.todo.item.graphics'))}</div>
   `;
 
+  if (state.mode === Mode.Dead && !isClassModalVisible()) {
+    deathOverlay.classList.remove('hidden');
+    const depth: number = state.deathDepth ?? 0;
+    const turn: number = state.deathTurn ?? state.turnCounter;
+    deathSubtitleEl.textContent = t('log.death.died', { turn, depth });
+    deathStoryEl.innerHTML = buildDeathStoryHtml();
+  } else {
+    deathOverlay.classList.add('hidden');
+  }
+
   asciiEl.style.display = 'none';
   canvasWrap.style.display = 'block';
   const view = getPixiViewSize();
   canvasRenderer.render(
     {
-      mode: state.mode,
+      mode: renderMode,
       overworld: state.overworld,
       dungeon,
       town,
@@ -4134,6 +4222,13 @@ btnCanvas.addEventListener('click', () => {
 btnNewSeed.addEventListener('click', () => {
   pendingSeed = Date.now() & 0xffffffff;
   state.log.push(t('log.newSeed', { seed: pendingSeed }));
+  showClassModal();
+});
+
+btnNewGame.addEventListener('click', () => {
+  pendingSeed = Date.now() & 0xffffffff;
+  state.log.push(t('log.newSeed', { seed: pendingSeed }));
+  deathOverlay.classList.add('hidden');
   showClassModal();
 });
 

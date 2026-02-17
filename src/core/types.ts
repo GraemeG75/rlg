@@ -3,7 +3,8 @@ export type Point = { x: number; y: number };
 export enum Mode {
   Overworld = 'overworld',
   Dungeon = 'dungeon',
-  Town = 'town'
+  Town = 'town',
+  Dead = 'dead'
 }
 
 export type MapRef = { kind: Mode.Overworld } | { kind: Mode.Dungeon; dungeonId: string } | { kind: Mode.Town; townId: string };

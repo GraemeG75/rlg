@@ -73,6 +73,7 @@ export const en: Record<string, string> = {
   'ui.mode.overworld': 'Mode: overworld',
   'ui.mode.town': 'Mode: town',
   'ui.mode.dungeon': 'Mode: dungeon (depth {depth} • {theme})',
+  'ui.mode.dead': 'Mode: fallen',
   'ui.render.pill': 'Renderer: PixiJS • FOV: {fov}',
   'ui.fov.on': 'on',
   'ui.fov.off': 'off',
@@ -221,6 +222,9 @@ export const en: Record<string, string> = {
   'log.help':
     'Keys: WASD/Arrows move • Shift+Move run (overworld) • M map • Enter use • I inventory • B shop (shop) • Q quests (tavern) • H story • G pick up • R renderer (iso) • F FOV • P save • O load.',
   'log.death.restart': 'You died. Press New Seed to restart.',
+  'log.death.died': 'You fell in turn {turn} at depth {depth}.',
+  'ui.death.banner': 'YOU HAVE FALLEN',
+  'ui.death.continue': 'Try Again',
   'log.autoWalk.blocked': 'Auto-walk blocked.',
   'log.autoWalk.arrived': 'Arrived at destination.',
   'log.autoWalk.dungeonFound': 'Dungeon entrance found. Press Enter to enter.',
