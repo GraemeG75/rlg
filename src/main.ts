@@ -7,6 +7,7 @@ import {
   Gender,
   ItemKind,
   Mode,
+  OverworldTile,
   PanelMode,
   QuestKind,
   ShopSpecialty,
@@ -32,8 +33,8 @@ import {
   townIdFromWorldPos,
   townSeedFromWorldPos
 } from './maps/overworld';
-import type { Dungeon, DungeonTheme } from './maps/dungeon';
-import { DungeonGenerator, DungeonLayout, getDungeonTile, randomFloorPoint } from './maps/dungeon';
+import type { Dungeon } from './maps/dungeon';
+import { DungeonGenerator, DungeonLayout, DungeonTheme, generateAmbushArena, getDungeonTile, randomFloorPoint } from './maps/dungeon';
 import type { Town } from './maps/town';
 import { generateTown, getTownTile } from './maps/town';
 import { FieldOfView } from './systems/fov';
@@ -54,6 +55,7 @@ type DungeonStackFrame = {
   depth: number;
   entranceWorldPos: Point;
   layout: DungeonLayout;
+  isAmbush?: boolean;
 };
 
 type GameState = {
@@ -1351,6 +1353,41 @@ function spawnMonstersInDungeon(s: GameState, dungeon: Dungeon, seed: number): v
   }
 }
 
+function spawnAmbushMonsters(s: GameState, dungeon: Dungeon, seed: number, playerLevel: number): void {
+  const rng: Rng = new Rng(seed ^ 0xa51d);
+  const desired: number = Math.max(2, Math.min(6, 2 + Math.floor(playerLevel / 3)));
+  const depth: number = Math.max(1, Math.floor((playerLevel + 1) / 2));
+  const used: Set<string> = new Set<string>();
+
+  for (let i: number = 0; i < desired; i++) {
+    let spawn: Point | undefined;
+    for (let attempts: number = 0; attempts < 200; attempts++) {
+      const candidate: Point = randomFloorPoint(dungeon, seed + 2000 + i * 37 + attempts * 11);
+      if ((candidate.x === dungeon.stairsUp.x && candidate.y === dungeon.stairsUp.y) || used.has(`${candidate.x},${candidate.y}`)) {
+        continue;
+      }
+      spawn = candidate;
+      used.add(`${candidate.x},${candidate.y}`);
+      break;
+    }
+    if (!spawn) {
+      const fx: number = Math.max(1, Math.min(dungeon.width - 2, dungeon.stairsUp.x + (i % 2 === 0 ? 1 : -1)));
+      const fy: number = Math.max(1, Math.min(dungeon.height - 2, dungeon.stairsUp.y));
+      if (getDungeonTile(dungeon, fx, fy) === DungeonTile.Wall) {
+        const altY: number = Math.max(1, Math.min(dungeon.height - 2, dungeon.stairsUp.y + (i % 2 === 0 ? 1 : -1)));
+        spawn = { x: dungeon.stairsUp.x, y: altY };
+      } else {
+        spawn = { x: fx, y: fy };
+      }
+      used.add(`${spawn.x},${spawn.y}`);
+    }
+
+    const roll: number = rng.nextInt(0, 100);
+    const monster: Entity = createMonsterForDepth(depth, roll, s.rng, dungeon.id, i, spawn, playerLevel);
+    s.entities.push(monster);
+  }
+}
+
 /**
  * Creates a monster scaled to the dungeon depth.
  * @param depth The dungeon depth.
@@ -2209,7 +2246,13 @@ function getActiveTownWorldPos(): Point | undefined {
     return undefined;
   }
   const tile = state.overworld.getTile(state.player.pos.x, state.player.pos.y);
-  if (tile === 'town' || tile.startsWith('town_')) {
+  if (
+    tile === OverworldTile.Town ||
+    tile === OverworldTile.TownShop ||
+    tile === OverworldTile.TownTavern ||
+    tile === OverworldTile.TownSmith ||
+    tile === OverworldTile.TownHouse
+  ) {
     return { x: state.player.pos.x, y: state.player.pos.y };
   }
   return undefined;
@@ -2224,10 +2267,10 @@ function getOverworldEntranceKind(): 'dungeon' | 'cave' | undefined {
     return undefined;
   }
   const tile = state.overworld.getTile(state.player.pos.x, state.player.pos.y);
-  if (tile === 'dungeon') {
+  if (tile === OverworldTile.Dungeon) {
     return 'dungeon';
   }
-  if (tile === 'cave') {
+  if (tile === OverworldTile.Cave) {
     return 'cave';
   }
   return undefined;
@@ -2250,7 +2293,7 @@ function isStandingOnTownBuilding(): boolean {
     return false;
   }
   const tile = state.overworld.getTile(state.player.pos.x, state.player.pos.y);
-  return tile === 'town_shop' || tile === 'town_tavern' || tile === 'town_smith' || tile === 'town_house';
+  return tile === OverworldTile.TownShop || tile === OverworldTile.TownTavern || tile === OverworldTile.TownSmith || tile === OverworldTile.TownHouse;
 }
 
 /**
@@ -2259,6 +2302,53 @@ function isStandingOnTownBuilding(): boolean {
  */
 function removeDeadEntities(s: GameState): void {
   s.entities = s.entities.filter((e: Entity) => e.hp > 0 || e.kind === EntityKind.Player);
+}
+
+function cleanupAmbushState(dungeonId: string): void {
+  state.dungeons.delete(dungeonId);
+  state.items = state.items.filter((it) => !it.mapRef || it.mapRef.kind !== Mode.Dungeon || it.mapRef.dungeonId !== dungeonId);
+  state.entities = state.entities.filter(
+    (e: Entity) => e.kind === EntityKind.Player || e.mapRef.kind !== Mode.Dungeon || e.mapRef.dungeonId !== dungeonId
+  );
+}
+
+function resolveAmbushVictory(dungeon: Dungeon): void {
+  const stackFrame: DungeonStackFrame | undefined = state.dungeonStack[0];
+  const returnPos: Point = stackFrame?.entranceWorldPos ?? { x: state.player.pos.x, y: state.player.pos.y };
+  const baseReward: number = 10 + state.player.level * 4;
+  const bonus: number = state.rng.nextInt(0, 8);
+  const rewardGold: number = baseReward + bonus;
+  state.player.gold += rewardGold;
+  state.log.push(t('log.ambush.victory', { gold: rewardGold }));
+
+  state.mode = Mode.Overworld;
+  state.player.mapRef = { kind: Mode.Overworld };
+  state.player.pos = { x: returnPos.x, y: returnPos.y };
+  state.dungeonStack = [];
+  state.destination = undefined;
+  state.autoPath = undefined;
+
+  cleanupAmbushState(dungeon.id);
+
+  state.log.push(t('log.enter.overworld'));
+}
+
+function checkAmbushCompletion(): void {
+  if (state.mode !== Mode.Dungeon) {
+    return;
+  }
+  const dungeon: Dungeon | undefined = getCurrentDungeon(state);
+  if (!dungeon || !dungeon.isAmbush || dungeon.ambushCleared) {
+    return;
+  }
+
+  const remaining: boolean = state.entities.some(
+    (e) => e.kind === EntityKind.Monster && e.mapRef.kind === Mode.Dungeon && e.mapRef.dungeonId === dungeon.id && e.hp > 0
+  );
+  if (!remaining) {
+    dungeon.ambushCleared = true;
+    state.log.push(t('log.ambush.cleared'));
+  }
 }
 
 /**
@@ -2388,6 +2478,7 @@ function handleAction(action: Action): void {
 
   monstersTurn();
   removeDeadEntities(state);
+  checkAmbushCompletion();
 
   if (state.player.hp <= 0) {
     state.log.push(t('log.death.restart'));
@@ -2471,10 +2562,20 @@ function playerTurn(action: Action): boolean {
 
       const tile = getDungeonTile(dungeon, state.player.pos.x, state.player.pos.y);
       if (tile === DungeonTile.StairsUp) {
+        if (dungeon.isAmbush && dungeon.ambushCleared) {
+          resolveAmbushVictory(dungeon);
+          return true;
+        }
+
         goUpLevelOrExit();
         return true;
       }
       if (tile === DungeonTile.StairsDown) {
+        if (dungeon.isAmbush) {
+          state.log.push(t('log.ambush.noDescend'));
+          return false;
+        }
+
         goDownLevel();
         return true;
       }
@@ -2611,15 +2712,21 @@ function tryMovePlayer(dx: number, dy: number): boolean {
     state.autoPath = undefined;
 
     const tile = state.overworld.getTile(next.x, next.y);
-    if (tile === 'dungeon') {
+    if (tile === OverworldTile.Dungeon) {
       state.log.push(t('log.map.dungeonFound'));
     }
-    if (tile === 'cave') {
+    if (tile === OverworldTile.Cave) {
       state.log.push(t('log.map.caveFound'));
     }
-    const isTown = tile === 'town_shop' || tile === 'town_tavern' || tile === 'town_smith' || tile === 'town_house';
+    const isTown =
+      tile === OverworldTile.TownShop || tile === OverworldTile.TownTavern || tile === OverworldTile.TownSmith || tile === OverworldTile.TownHouse;
     if (isTown) {
       state.log.push(t('log.map.townFound'));
+    }
+
+    if (maybeTriggerAmbush(tile)) {
+      moved = true;
+      break;
     }
   }
 
@@ -3046,6 +3153,95 @@ function enterDungeonAt(worldPos: Point, entranceKind: 'dungeon' | 'cave'): void
   triggerDungeonBanner(depth);
 }
 
+function ambushThemeForTile(tile: OverworldTile): DungeonTheme {
+  switch (tile) {
+    case OverworldTile.Forest:
+    case OverworldTile.Grass:
+    case OverworldTile.Cave:
+      return DungeonTheme.Caves;
+    case OverworldTile.Mountain:
+    case OverworldTile.MountainSnow:
+    case OverworldTile.Dungeon:
+      return DungeonTheme.Crypt;
+    case OverworldTile.Road:
+      return DungeonTheme.Ruins;
+    default:
+      return DungeonTheme.Caves;
+  }
+}
+
+function startAmbushEncounter(tile: OverworldTile, origin: Point): void {
+  const baseHash: number = hash2D(state.worldSeed, origin.x, origin.y);
+  const seed: number = (state.rng.nextInt(0, 0x7fffffff) ^ baseHash) | 0;
+  const ambushId: string = `ambush_${origin.x}_${origin.y}_${state.turnCounter}_${seed & 0xffff}`;
+  const depth: number = Math.max(1, Math.floor((state.player.level + 1) / 2));
+  const theme: DungeonTheme = ambushThemeForTile(tile);
+  const arena: Dungeon = generateAmbushArena({ dungeonId: ambushId, baseId: ambushId, depth, seed, theme });
+
+  state.dungeons.set(ambushId, arena);
+  spawnAmbushMonsters(state, arena, seed, state.player.level);
+
+  state.dungeonStack = [
+    {
+      baseId: ambushId,
+      depth: 0,
+      entranceWorldPos: { x: origin.x, y: origin.y },
+      layout: DungeonLayout.Rooms,
+      isAmbush: true
+    }
+  ];
+  state.mode = Mode.Dungeon;
+  state.destination = undefined;
+  state.autoPath = undefined;
+  state.player.mapRef = { kind: Mode.Dungeon, dungeonId: ambushId };
+  state.player.pos = { x: arena.stairsUp.x, y: arena.stairsUp.y };
+
+  state.log.push(t('log.ambush.start'));
+  triggerAmbushBanner();
+}
+
+function maybeTriggerAmbush(tile: OverworldTile): boolean {
+  if (state.mode !== Mode.Overworld) {
+    return false;
+  }
+  if (
+    tile === OverworldTile.Town ||
+    tile === OverworldTile.TownShop ||
+    tile === OverworldTile.TownTavern ||
+    tile === OverworldTile.TownSmith ||
+    tile === OverworldTile.TownHouse
+  ) {
+    return false;
+  }
+  if (tile === OverworldTile.Water || tile === OverworldTile.WaterDeep) {
+    return false;
+  }
+
+  let chance: number = 0;
+  if (tile === OverworldTile.Forest) {
+    chance = 6;
+  } else if (tile === OverworldTile.Grass) {
+    chance = 3;
+  } else if (tile === OverworldTile.Road) {
+    chance = 1;
+  } else if (tile === OverworldTile.Cave || tile === OverworldTile.Dungeon) {
+    chance = 0;
+  } else {
+    chance = 2;
+  }
+
+  if (chance <= 0) {
+    return false;
+  }
+
+  if (state.rng.nextInt(0, 100) < chance) {
+    startAmbushEncounter(tile, { x: state.player.pos.x, y: state.player.pos.y });
+    return true;
+  }
+
+  return false;
+}
+
 /**
  * Enters a town at the given world position.
  * @param worldPos The overworld position.
@@ -3109,10 +3305,16 @@ function goUpLevelOrExit(): void {
       return;
     }
 
+    if (top.isAmbush) {
+      cleanupAmbushState(top.baseId);
+    }
+
     state.mode = Mode.Overworld;
     state.player.mapRef = { kind: Mode.Overworld };
     state.player.pos = { x: top.entranceWorldPos.x, y: top.entranceWorldPos.y };
     state.dungeonStack = [];
+    state.destination = undefined;
+    state.autoPath = undefined;
     state.log.push(t('log.enter.overworld'));
     addStoryEvent(state, 'story.event.returnOverworld.title', 'story.event.returnOverworld.detail');
     return;
@@ -3228,6 +3430,11 @@ function runFxRenderLoop(durationMs: number): void {
 function triggerDungeonBanner(depth: number): void {
   canvasRenderer.triggerBannerEffect(t('ui.fx.dungeonDepth', { depth: depth + 1 }), 1200);
   runFxRenderLoop(1200);
+}
+
+function triggerAmbushBanner(): void {
+  canvasRenderer.triggerBannerEffect(t('ui.fx.ambush'), 1400);
+  runFxRenderLoop(1400);
 }
 
 /**

@@ -18,6 +18,8 @@ export type Dungeon = {
   baseId: string;
   depth: number;
   theme: DungeonTheme;
+  isAmbush?: boolean;
+  ambushCleared?: boolean;
 
   width: number;
   height: number;
@@ -40,6 +42,16 @@ export type DungeonGenerationConfig = {
   width: number;
   height: number;
   layout: DungeonLayout;
+};
+
+export type AmbushArenaConfig = {
+  dungeonId: string;
+  baseId: string;
+  depth: number;
+  seed: number;
+  width?: number;
+  height?: number;
+  theme?: DungeonTheme;
 };
 
 /**
@@ -357,4 +369,44 @@ export function randomFloorPoint(dungeon: Dungeon, seed: number): Point {
     }
   }
   return { x: dungeon.stairsDown.x, y: dungeon.stairsDown.y };
+}
+
+export function generateAmbushArena(config: AmbushArenaConfig): Dungeon {
+  const width: number = Math.max(12, config.width ?? 12);
+  const height: number = Math.max(12, config.height ?? 12);
+  const theme: DungeonTheme = config.theme ?? DungeonTheme.Ruins;
+  const tiles: DungeonTile[] = new Array<DungeonTile>(width * height).fill(DungeonTile.Wall);
+  const visibility: TileVisibility[] = new Array<TileVisibility>(width * height).fill(TileVisibility.Unseen);
+
+  const innerStartX: number = Math.floor(width / 2) - 3;
+  const innerEndX: number = Math.floor(width / 2) + 3;
+  const innerStartY: number = Math.floor(height / 2) - 3;
+  const innerEndY: number = Math.floor(height / 2) + 3;
+
+  for (let y: number = innerStartY; y <= innerEndY; y++) {
+    for (let x: number = innerStartX; x <= innerEndX; x++) {
+      tiles[idx(x, y, width)] = DungeonTile.Floor;
+    }
+  }
+
+  const center: Point = { x: Math.floor(width / 2), y: Math.floor(height / 2) };
+  tiles[idx(center.x, center.y, width)] = DungeonTile.StairsUp;
+
+  const down: Point = { x: center.x, y: Math.min(height - 2, center.y + 3) };
+
+  return {
+    id: config.dungeonId,
+    baseId: config.baseId,
+    depth: config.depth,
+    theme,
+    isAmbush: true,
+    ambushCleared: false,
+    width,
+    height,
+    tiles,
+    visibility,
+    stairsUp: center,
+    stairsDown: down,
+    bossRoom: undefined
+  };
 }
