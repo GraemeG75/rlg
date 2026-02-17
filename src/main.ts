@@ -1339,7 +1339,7 @@ const BOSS_MIN_DEPTH: number = 3;
  * @param seed The RNG seed.
  */
 function spawnMonstersInDungeon(s: GameState, dungeon: Dungeon, seed: number): void {
-  const monsterCount: number = 5 + Math.min(12, dungeon.depth * 2);
+  const monsterCount: number = 7 + Math.min(14, dungeon.depth * 2);
   const rng: Rng = new Rng(seed ^ 0xbeef);
   const playerLevel: number = s.player.level;
 
@@ -1355,7 +1355,7 @@ function spawnMonstersInDungeon(s: GameState, dungeon: Dungeon, seed: number): v
 
 function spawnAmbushMonsters(s: GameState, dungeon: Dungeon, seed: number, playerLevel: number): void {
   const rng: Rng = new Rng(seed ^ 0xa51d);
-  const desired: number = Math.max(2, Math.min(6, 2 + Math.floor(playerLevel / 3)));
+  const desired: number = Math.max(3, Math.min(7, 3 + Math.floor(playerLevel / 2)));
   const depth: number = Math.max(1, Math.floor((playerLevel + 1) / 2));
   const used: Set<string> = new Set<string>();
 
@@ -1412,11 +1412,11 @@ function createMonsterForDepth(depth: number, roll: number, rng: Rng, dungeonId:
       glyph: 's',
       pos: p,
       mapRef: { kind: Mode.Dungeon, dungeonId },
-      hp: 4 + effectiveDepth,
-      maxHp: 4 + effectiveDepth,
-      baseAttack: 1 + Math.floor(effectiveDepth / 2),
-      baseDefense: 0,
-      level: monsterLevel,
+      hp: 6 + effectiveDepth * 2,
+      maxHp: 6 + effectiveDepth * 2,
+      baseAttack: 2 + Math.floor((effectiveDepth * 2) / 3),
+      baseDefense: Math.max(0, Math.floor(effectiveDepth / 4)),
+      level: Math.max(monsterLevel, 2),
       xp: 0,
       gold: 0,
       inventory: [],
@@ -1432,11 +1432,11 @@ function createMonsterForDepth(depth: number, roll: number, rng: Rng, dungeonId:
       glyph: 'g',
       pos: p,
       mapRef: { kind: Mode.Dungeon, dungeonId },
-      hp: 6 + effectiveDepth * 2,
-      maxHp: 6 + effectiveDepth * 2,
-      baseAttack: 2 + effectiveDepth,
-      baseDefense: Math.floor(effectiveDepth / 3),
-      level: monsterLevel,
+      hp: 9 + effectiveDepth * 3,
+      maxHp: 9 + effectiveDepth * 3,
+      baseAttack: 3 + Math.floor((effectiveDepth * 4) / 3),
+      baseDefense: 1 + Math.floor(effectiveDepth / 2),
+      level: Math.max(monsterLevel, 3),
       xp: 0,
       gold: 0,
       inventory: [],
@@ -1452,11 +1452,11 @@ function createMonsterForDepth(depth: number, roll: number, rng: Rng, dungeonId:
       glyph: 'w',
       pos: p,
       mapRef: { kind: Mode.Dungeon, dungeonId },
-      hp: 7 + effectiveDepth * 2,
-      maxHp: 7 + effectiveDepth * 2,
-      baseAttack: 2 + effectiveDepth,
-      baseDefense: Math.floor(effectiveDepth / 3),
-      level: monsterLevel,
+      hp: 12 + effectiveDepth * 3,
+      maxHp: 12 + effectiveDepth * 3,
+      baseAttack: 4 + Math.floor((effectiveDepth * 5) / 3),
+      baseDefense: 2 + Math.floor((effectiveDepth * 2) / 3),
+      level: Math.max(monsterLevel, 4),
       xp: 0,
       gold: 0,
       inventory: [],
@@ -1473,11 +1473,11 @@ function createMonsterForDepth(depth: number, roll: number, rng: Rng, dungeonId:
     glyph: 'O',
     pos: p,
     mapRef: { kind: Mode.Dungeon, dungeonId },
-    hp: 10 + effectiveDepth * 3,
-    maxHp: 10 + effectiveDepth * 3,
-    baseAttack: 3 + effectiveDepth,
-    baseDefense: 1 + Math.floor(effectiveDepth / 2),
-    level: Math.max(monsterLevel, 2),
+    hp: 16 + effectiveDepth * 4,
+    maxHp: 16 + effectiveDepth * 4,
+    baseAttack: 5 + Math.floor((effectiveDepth * 5) / 3),
+    baseDefense: 3 + Math.floor((effectiveDepth * 2) / 3),
+    level: Math.max(monsterLevel, 5),
     xp: 0,
     gold: 0,
     inventory: [],
@@ -1606,10 +1606,7 @@ function spawnLootInDungeon(s: GameState, dungeon: Dungeon, seed: number): void 
  * Returns the town id under the player if any.
  * @returns The town id, or undefined.
  */
-function getActiveTownId(): string | undefined {
-  if (state.mode === Mode.Town) {
-    return state.currentTownId;
-  }
+function getTownIdUnderPlayer(): string | undefined {
   if (state.mode !== Mode.Overworld) {
     return undefined;
   }
@@ -1626,11 +1623,8 @@ function getActiveTownId(): string | undefined {
 
 /**
  * Ensures the town has quests generated.
- * @param s The game state.
- * @param townPos The town position.
  */
-function ensureQuestForTown(s: GameState, townPos: Point): void {
-  const center: Point = s.overworld.getTownCenter(townPos.x, townPos.y) ?? townPos;
+function ensureTownHasQuests(s: GameState, center: Point): void {
   const townId: string = townIdFromWorldPos(s.worldSeed, center.x, center.y);
 
   // If we already have quests for this town, do nothing.
@@ -1752,6 +1746,11 @@ function ensureQuestForTown(s: GameState, townPos: Point): void {
 
     s.quests.push(q);
   }
+}
+
+function ensureQuestForTown(s: GameState, townPos: Point): void {
+  const center: Point = s.overworld.getTownCenter(townPos.x, townPos.y) ?? townPos;
+  ensureTownHasQuests(s, center);
 }
 
 /**
@@ -2255,6 +2254,29 @@ function getActiveTownWorldPos(): Point | undefined {
   ) {
     return { x: state.player.pos.x, y: state.player.pos.y };
   }
+  return undefined;
+}
+
+function getActiveTownId(): string | undefined {
+  if (state.mode === Mode.Town) {
+    if (state.currentTownId) {
+      return state.currentTownId;
+    }
+    const town: Town | undefined = getCurrentTown(state);
+    if (town) {
+      return town.id;
+    }
+    const origin: Point | undefined = state.townReturnPos;
+    if (origin) {
+      return townIdFromWorldPos(state.worldSeed, origin.x, origin.y);
+    }
+    return undefined;
+  }
+
+  if (state.mode === Mode.Overworld) {
+    return getTownIdUnderPlayer();
+  }
+
   return undefined;
 }
 
@@ -2815,6 +2837,11 @@ class CombatEngine {
     let def: number = defender.baseDefense + this.getEquippedDefenseBonus(defender);
     const originalDef: number = def;
 
+    // Player takes more damage from monsters
+    if (defender.kind === EntityKind.Player && attacker.kind === EntityKind.Monster) {
+      def = Math.floor(def * 0.75);
+    }
+
     let damageMultiplier: number = 1;
     const suffixParts: string[] = [];
     let playerVerb: string = t('combat.verb.hit');
@@ -2869,10 +2896,15 @@ class CombatEngine {
       }
     }
 
-    const roll: number = state.rng.nextInt(0, 5);
+    const roll: number = state.rng.nextInt(0, 6);
     const raw: number = atk + roll;
     let dmg: number = Math.max(1, raw - def);
     dmg = Math.max(1, Math.floor(dmg * damageMultiplier));
+
+    // Monsters deal bonus damage against player
+    if (defender.kind === EntityKind.Player && attacker.kind === EntityKind.Monster) {
+      dmg = Math.floor(dmg * 1.15);
+    }
 
     defender.hp -= dmg;
 
