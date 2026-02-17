@@ -2157,6 +2157,18 @@ function isStandingOnDungeonEntrance(): boolean {
 }
 
 /**
+ * Returns true if standing on a town building.
+ * @returns True if at a town building.
+ */
+function isStandingOnTownBuilding(): boolean {
+  if (state.mode !== 'overworld') {
+    return false;
+  }
+  const tile = state.overworld.getTile(state.player.pos.x, state.player.pos.y);
+  return tile === 'town_shop' || tile === 'town_tavern' || tile === 'town_smith' || tile === 'town_house';
+}
+
+/**
  * Removes dead non-player entities.
  * @param s The game state.
  */
@@ -2336,7 +2348,7 @@ function playerTurn(action: Action): boolean {
       if (tile === 'cave') {
         state.log.push(t('log.autoWalk.caveFound'));
       }
-      if (tile === 'town_gate') {
+      if (isStandingOnTownBuilding()) {
         state.log.push(t('log.autoWalk.townFound'));
       }
 
@@ -2360,8 +2372,7 @@ function playerTurn(action: Action): boolean {
         enterDungeonAt(state.player.pos, entrance);
         return true;
       }
-      const tile = state.overworld.getTile(state.player.pos.x, state.player.pos.y);
-      if (tile === 'town_gate') {
+      if (isStandingOnTownBuilding()) {
         enterTownAt(state.player.pos);
         return true;
       }
@@ -2521,7 +2532,8 @@ function tryMovePlayer(dx: number, dy: number): boolean {
     if (tile === 'cave') {
       state.log.push(t('log.map.caveFound'));
     }
-    if (tile === 'town_gate') {
+    const isTown = tile === 'town_shop' || tile === 'town_tavern' || tile === 'town_smith' || tile === 'town_house';
+    if (isTown) {
       state.log.push(t('log.map.townFound'));
     }
   }
@@ -3362,14 +3374,6 @@ function minimapColor(tile: string): string {
     case 'dungeon':
       return '#9b4a3a';
     case 'town':
-    case 'town_square':
-      return '#d7b46a';
-    case 'town_road':
-      return '#b58d57';
-    case 'town_gate':
-      return '#c6a069';
-    case 'town_wall':
-      return '#7a6750';
     case 'town_shop':
     case 'town_tavern':
     case 'town_smith':

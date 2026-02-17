@@ -30,7 +30,7 @@ const CAVE_PERIOD: number = 1024;
 const CAVE_SPAWN_THRESHOLD: number = 4;
 const POI_PERIOD: number = 2048;
 const DUNGEON_SPAWN_THRESHOLD: number = 3;
-const TOWN_RADIUS: number = 4;
+const TOWN_RADIUS: number = 1;
 
 /**
  * Procedural overworld map generator and tile query interface.
@@ -101,9 +101,6 @@ export class Overworld {
     if (tile === 'mountain' || tile === 'mountain_snow') {
       return false;
     }
-    if (tile === 'town_wall' || tile === 'town_shop' || tile === 'town_tavern' || tile === 'town_smith' || tile === 'town_house') {
-      return false;
-    }
     return true;
   }
 
@@ -116,13 +113,10 @@ export class Overworld {
     if (tile === 'road') {
       return 1;
     }
-    if (tile === 'town_road' || tile === 'town_gate') {
-      return 1;
+    if (tile === 'grass' || tile === 'town' || tile === 'dungeon' || tile === 'cave') {
+      return 1.4;
     }
-    if (tile === 'town_square') {
-      return 1.1;
-    }
-    if (tile === 'grass' || tile === 'town' || tile === 'town_ground' || tile === 'dungeon' || tile === 'cave') {
+    if (tile === 'town_shop' || tile === 'town_tavern' || tile === 'town_smith' || tile === 'town_house') {
       return 1.4;
     }
     if (tile === 'forest') {
@@ -226,45 +220,23 @@ export class Overworld {
   private townTileAt(x: number, y: number, center: { x: number; y: number }): OverworldTile {
     const dx: number = x - center.x;
     const dy: number = y - center.y;
-    const variant: number = this.townVariant(center.x, center.y);
-    const rot: number = variant % 4;
-    const r = this.rotate(dx, dy, rot);
-    const rdx: number = r.x;
-    const rdy: number = r.y;
-    const buildings: OverworldTile[] = this.townBuildingSet(variant);
-    if (Math.abs(dx) > TOWN_RADIUS || Math.abs(dy) > TOWN_RADIUS) {
-      return this.baseTerrainAt(x, y);
+    const buildings: OverworldTile[] = this.townBuildingSet(this.townVariant(center.x, center.y));
+
+    // 2x2 town layout
+    if (dx === 0 && dy === 0) {
+      return buildings[0]; // top-left
+    }
+    if (dx === 1 && dy === 0) {
+      return buildings[1]; // top-right
+    }
+    if (dx === 0 && dy === 1) {
+      return buildings[2]; // bottom-left
+    }
+    if (dx === 1 && dy === 1) {
+      return buildings[3]; // bottom-right
     }
 
-    if (Math.abs(rdx) === TOWN_RADIUS || Math.abs(rdy) === TOWN_RADIUS) {
-      if (rdx === 0 && (rdy === -TOWN_RADIUS || rdy === TOWN_RADIUS)) {
-        return 'town_gate';
-      }
-      return 'town_wall';
-    }
-
-    if (rdy <= -2 && rdy >= -3 && Math.abs(rdx) <= 1) {
-      return buildings[0];
-    }
-    if (rdy >= 2 && rdy <= 3 && Math.abs(rdx) <= 1) {
-      return buildings[1];
-    }
-    if (rdx <= -2 && rdx >= -3 && Math.abs(rdy) <= 1) {
-      return buildings[2];
-    }
-    if (rdx >= 2 && rdx <= 3 && Math.abs(rdy) <= 1) {
-      return buildings[3];
-    }
-
-    if (rdx === 0 && rdy === 0) {
-      return 'town_square';
-    }
-
-    if (rdx === 0 || rdy === 0) {
-      return 'town_road';
-    }
-
-    return 'town_ground';
+    return this.baseTerrainAt(x, y);
   }
 
   /**

@@ -914,15 +914,6 @@ export class PixiRenderer {
           return { base: '#4f5359', edge: '#6b727a' };
         case 'cave':
           return { base: '#2a2c2f', edge: '#3b3f45' };
-        case 'town_ground':
-          return { base: '#2f2720', edge: '#3f352b' };
-        case 'town_road':
-          return { base: '#3a2f25', edge: '#4a3b2e' };
-        case 'town_square':
-          return { base: '#3d332a', edge: '#4f4134' };
-        case 'town_wall':
-        case 'town_gate':
-          return { base: '#232a34', edge: '#343f4d' };
         case 'town_shop':
         case 'town_tavern':
         case 'town_smith':
@@ -987,12 +978,6 @@ export class PixiRenderer {
           return 'ow_mountain_snow';
         case 'road':
           return 'ow_road';
-        case 'town_ground':
-          return 'ow_town_ground';
-        case 'town_road':
-          return 'ow_town_road';
-        case 'town_square':
-          return 'ow_town_square';
         case 'town_shop':
           return 'ow_town_shop';
         case 'town_tavern':
@@ -1001,10 +986,6 @@ export class PixiRenderer {
           return 'ow_town_smith';
         case 'town_house':
           return 'ow_town_house';
-        case 'town_wall':
-          return 'ow_town_wall';
-        case 'town_gate':
-          return 'ow_town_gate';
         case 'dungeon':
           return 'ow_dungeon';
         case 'cave':
@@ -1075,7 +1056,7 @@ export class PixiRenderer {
       return tile === 'wall' ? high : low;
     }
     if (kind === 'overworld') {
-      if (tile === 'mountain' || tile === 'mountain_snow' || tile === 'town_wall') {
+      if (tile === 'mountain' || tile === 'mountain_snow') {
         return high;
       }
       if (tile === 'water') {
@@ -1879,16 +1860,6 @@ export class PixiRenderer {
         return 'ow_mountain_snow';
       case 'road':
         return 'ow_road';
-      case 'town_ground':
-        return 'ow_town_ground';
-      case 'town_road':
-        return 'ow_town_road';
-      case 'town_square':
-        return 'ow_town_square';
-      case 'town_gate':
-        return 'ow_town_gate';
-      case 'town_wall':
-        return 'ow_town_wall';
       case 'town_shop':
         return 'ow_town_shop';
       case 'town_tavern':

@@ -248,16 +248,7 @@ function overworldChar(tile: string): string {
     case 'cave':
       return 'C';
     case 'town':
-    case 'town_square':
       return 'T';
-    case 'town_ground':
-      return 't';
-    case 'town_road':
-      return '+';
-    case 'town_gate':
-      return 'G';
-    case 'town_wall':
-      return '#';
     case 'town_shop':
       return 'S';
     case 'town_tavern':

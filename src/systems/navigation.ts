@@ -69,7 +69,7 @@ export function findOverworldPath(overworld: Overworld, from: Point, to: Point, 
       return 0.35;
     }
     if (tile.startsWith('town_')) {
-      return tile === 'town_gate' || tile === 'town_road' ? 0.5 : 0.9;
+      return 0.8;
     }
     if (tile === 'grass') {
       return 1.0;
