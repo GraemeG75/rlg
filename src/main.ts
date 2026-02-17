@@ -2255,6 +2255,8 @@ function awardXp(amount: number): void {
     const gains: LevelUpGains = applyLevelUpGrowth(state.player, state.playerClass);
     state.player.hp = state.player.maxHp;
     state.log.push(t('log.levelUp', { level: state.player.level }));
+    canvasRenderer.triggerLevelUpEffect();
+    runFxRenderLoop(1200);
     addStoryEvent(state, 'story.event.levelUp.title', 'story.event.levelUp.detail', { level: state.player.level });
     const gainParts: string[] = [t('log.levelUp.gain.hp', { value: gains.hp }), t('log.levelUp.gain.atk', { value: gains.attack })];
     if (gains.defense > 0) {
@@ -2531,6 +2533,7 @@ function enterDungeonAt(worldPos: Point, entranceKind: 'dungeon' | 'cave'): void
 
   state.log.push(entranceKind === 'cave' ? t('log.enter.cave') : t('log.enter.dungeon'));
   addStoryEvent(state, 'story.event.enterDungeon.title', 'story.event.enterDungeon.detail', { depth: 0 });
+  triggerDungeonBanner(depth);
 }
 
 function enterTownAt(worldPos: Point): void {
@@ -2573,6 +2576,7 @@ function goDownLevel(): void {
   state.log.push(t('log.dungeon.descend', { depth: nextDepth, theme: t(`theme.${dungeon.theme}`) }));
   addStoryEvent(state, 'story.event.descend.title', 'story.event.descend.detail', { depth: nextDepth, theme: t(`theme.${dungeon.theme}`) });
   recordDepthForQuests(state, nextDepth);
+  triggerDungeonBanner(nextDepth);
 }
 
 function goUpLevelOrExit(): void {
@@ -2603,6 +2607,7 @@ function goUpLevelOrExit(): void {
   state.player.pos = { x: dungeon.stairsDown.x, y: dungeon.stairsDown.y };
   state.log.push(t('log.dungeon.ascend', { depth: prev.depth }));
   addStoryEvent(state, 'story.event.ascend.title', 'story.event.ascend.detail', { depth: prev.depth });
+  triggerDungeonBanner(prev.depth);
 }
 
 function setDestination(dest: Point): void {
@@ -2633,6 +2638,34 @@ function setDestination(dest: Point): void {
 function syncRendererUi(): void {
   asciiEl.style.display = 'none';
   canvasWrap.style.display = 'block';
+}
+
+let fxRenderUntil: number = 0;
+let fxRenderHandle: number = 0;
+
+function runFxRenderLoop(durationMs: number): void {
+  fxRenderUntil = Math.max(fxRenderUntil, performance.now() + durationMs);
+  if (fxRenderHandle) {
+    return;
+  }
+
+  const tick = (): void => {
+    if (performance.now() >= fxRenderUntil) {
+      fxRenderHandle = 0;
+      render();
+      return;
+    }
+
+    render();
+    fxRenderHandle = requestAnimationFrame(tick);
+  };
+
+  fxRenderHandle = requestAnimationFrame(tick);
+}
+
+function triggerDungeonBanner(depth: number): void {
+  canvasRenderer.triggerBannerEffect(t('ui.fx.dungeonDepth', { depth: depth + 1 }), 1200);
+  runFxRenderLoop(1200);
 }
 
 function render(): void {
@@ -2746,6 +2779,7 @@ function render(): void {
     <div>• ${escapeHtml(t('ui.todo.item.translations'))}</div>
     <div>• ${escapeHtml(t('ui.todo.item.stats'))}</div>
     <div>• ${escapeHtml(t('ui.todo.item.ui'))}</div>
+    <div>• ${escapeHtml(t('ui.todo.item.graphics'))}</div>
   `;
 
   asciiEl.style.display = 'none';

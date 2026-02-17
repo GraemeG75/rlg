@@ -6,6 +6,7 @@ import type { Town } from '../maps/town';
 import { getDungeonTile, getVisibility } from '../maps/dungeon';
 import { getTownTile } from '../maps/town';
 import { SpriteAtlas, type SpriteKey } from './sprites';
+import { t } from '../i18n';
 
 type PixiRenderContext = {
   mode: Mode;
@@ -45,6 +46,13 @@ export class PixiRenderer {
   private cloudOffsetX: number;
   private cloudOffsetY: number;
   private lastCloudTime: number;
+  private levelUpUntil: number;
+  private levelUpPulseStart: number;
+  private levelUpQueued: boolean;
+  private bannerLabel: string;
+  private bannerDurationMs: number;
+  private levelUpBanner?: Sprite;
+  private levelUpRays?: Sprite;
   private readonly textures: Map<SpriteKey | string, Texture>;
   private readonly tileSize: number;
   private readonly canvas: HTMLCanvasElement;
@@ -72,6 +80,11 @@ export class PixiRenderer {
     this.cloudOffsetX = 0;
     this.cloudOffsetY = 0;
     this.lastCloudTime = performance.now();
+    this.levelUpUntil = 0;
+    this.levelUpPulseStart = 0;
+    this.levelUpQueued = false;
+    this.bannerLabel = '';
+    this.bannerDurationMs = 1200;
 
     this.app = new Application();
     this.ready = this.app
@@ -95,6 +108,11 @@ export class PixiRenderer {
         this.app.stage.addChild(this.overlayLayer);
         this.app.stage.addChild(this.effectLayer);
         this.initialized = true;
+
+        if (this.levelUpQueued) {
+          this.levelUpQueued = false;
+          this.ensureLevelUpSprites();
+        }
 
         if (this.pendingRender) {
           const pending = this.pendingRender;
@@ -125,6 +143,8 @@ export class PixiRenderer {
       this.renderIsometric(ctx, viewWidth, viewHeight);
       return;
     }
+
+    this.hideLevelUpEffect();
 
     const dungeon: Dungeon | undefined = ctx.dungeon;
     const halfW: number = Math.floor(viewWidth / 2);
@@ -482,6 +502,7 @@ export class PixiRenderer {
       this.vignetteSprite.alpha = ctx.mode === 'dungeon' ? 0.75 : 0.45;
     }
 
+    this.renderLevelUpEffect(now);
     this.app.render();
   }
 
@@ -857,6 +878,183 @@ export class PixiRenderer {
     const ng: number = Math.max(0, Math.min(255, Math.round(g * scale)));
     const nb: number = Math.max(0, Math.min(255, Math.round(b * scale)));
     return `#${nr.toString(16).padStart(2, '0')}${ng.toString(16).padStart(2, '0')}${nb.toString(16).padStart(2, '0')}`;
+  }
+
+  public triggerLevelUpEffect(): void {
+    this.triggerBannerEffect(t('ui.fx.levelUp'));
+  }
+
+  public triggerBannerEffect(label: string, durationMs: number = 1200): void {
+    const now: number = performance.now();
+    this.bannerLabel = label;
+    this.bannerDurationMs = durationMs;
+    this.levelUpUntil = now + durationMs;
+    this.levelUpPulseStart = now;
+    if (!this.initialized) {
+      this.levelUpQueued = true;
+      return;
+    }
+    this.ensureLevelUpSprites();
+    if (this.levelUpBanner) {
+      this.levelUpBanner.texture = this.getBannerTexture(label);
+    }
+  }
+
+  private ensureLevelUpSprites(): void {
+    if (!this.levelUpRays) {
+      this.levelUpRays = new Sprite(this.getLevelUpRaysTexture());
+      this.levelUpRays.x = 0;
+      this.levelUpRays.y = 0;
+      this.levelUpRays.alpha = 0;
+      this.levelUpRays.visible = false;
+      this.effectLayer.addChild(this.levelUpRays);
+    }
+
+    if (!this.levelUpBanner) {
+      this.levelUpBanner = new Sprite(this.getBannerTexture(this.bannerLabel || t('ui.fx.levelUp')));
+      this.levelUpBanner.x = 0;
+      this.levelUpBanner.y = 8;
+      this.levelUpBanner.alpha = 0;
+      this.levelUpBanner.visible = false;
+      this.effectLayer.addChild(this.levelUpBanner);
+    }
+  }
+
+  private hideLevelUpEffect(): void {
+    if (this.levelUpBanner) {
+      this.levelUpBanner.visible = false;
+    }
+    if (this.levelUpRays) {
+      this.levelUpRays.visible = false;
+    }
+  }
+
+  private renderLevelUpEffect(now: number): void {
+    if (this.levelUpUntil <= now) {
+      this.hideLevelUpEffect();
+      return;
+    }
+
+    this.ensureLevelUpSprites();
+    if (!this.levelUpBanner || !this.levelUpRays) {
+      return;
+    }
+
+    const duration: number = this.bannerDurationMs;
+    const remaining: number = this.levelUpUntil - now;
+    const progress: number = Math.min(1, Math.max(0, 1 - remaining / duration));
+    const fadeIn: number = Math.min(1, progress / 0.18);
+    const fadeOut: number = Math.min(1, (1 - progress) / 0.2);
+    const alpha: number = Math.min(fadeIn, fadeOut);
+    const pulse: number = 0.9 + Math.sin((now - this.levelUpPulseStart) / 140) * 0.1;
+
+    const widthPx: number = this.app.renderer.width;
+    const bannerWidth: number = Math.min(widthPx * 0.86, 540);
+    const bannerHeight: number = 56;
+    const topPad: number = 8;
+
+    this.levelUpBanner.visible = true;
+    this.levelUpBanner.width = bannerWidth;
+    this.levelUpBanner.height = bannerHeight;
+    this.levelUpBanner.x = Math.round((widthPx - bannerWidth) / 2);
+    this.levelUpBanner.y = topPad;
+    this.levelUpBanner.alpha = alpha * pulse;
+
+    this.levelUpRays.visible = true;
+    this.levelUpRays.width = widthPx;
+    this.levelUpRays.height = 180;
+    this.levelUpRays.x = 0;
+    this.levelUpRays.y = 0;
+    this.levelUpRays.alpha = alpha * 0.65;
+  }
+
+  private getBannerTexture(label: string): Texture {
+    const normalizedLabel: string = label.trim().replace(/\s+/g, '_');
+    const cacheKey: string = `fx_banner_${normalizedLabel}`;
+    const cached: Texture | undefined = this.textures.get(cacheKey);
+    if (cached) {
+      return cached;
+    }
+
+    const canvas: HTMLCanvasElement = document.createElement('canvas');
+    canvas.width = 520;
+    canvas.height = 64;
+    const ctx: CanvasRenderingContext2D | null = canvas.getContext('2d');
+    if (!ctx) {
+      throw new Error('Canvas not available for level-up banner.');
+    }
+
+    const w: number = canvas.width;
+    const h: number = canvas.height;
+    const gradient: CanvasGradient = ctx.createLinearGradient(0, 0, 0, h);
+    gradient.addColorStop(0, 'rgba(255, 218, 150, 0.95)');
+    gradient.addColorStop(0.55, 'rgba(255, 180, 90, 0.85)');
+    gradient.addColorStop(1, 'rgba(140, 70, 24, 0.85)');
+
+    ctx.fillStyle = gradient;
+    ctx.fillRect(0, 0, w, h);
+
+    ctx.strokeStyle = 'rgba(255, 235, 190, 0.85)';
+    ctx.lineWidth = 2;
+    ctx.strokeRect(2, 2, w - 4, h - 4);
+
+    ctx.strokeStyle = 'rgba(90, 40, 12, 0.55)';
+    ctx.lineWidth = 1;
+    ctx.strokeRect(6, 6, w - 12, h - 12);
+
+    ctx.fillStyle = 'rgba(255, 255, 255, 0.15)';
+    ctx.fillRect(0, 6, w, 12);
+
+    ctx.font = 'bold 26px Georgia, "Times New Roman", serif';
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'middle';
+    ctx.fillStyle = 'rgba(68, 26, 6, 0.85)';
+    ctx.fillText(label, w / 2 + 1, h / 2 + 2);
+    ctx.fillStyle = 'rgba(255, 244, 214, 0.95)';
+    ctx.fillText(label, w / 2, h / 2);
+
+    const texture: Texture = Texture.from(canvas);
+    this.textures.set(cacheKey, texture);
+    return texture;
+  }
+
+  private getLevelUpRaysTexture(): Texture {
+    const cacheKey: string = 'fx_levelup_rays';
+    const cached: Texture | undefined = this.textures.get(cacheKey);
+    if (cached) {
+      return cached;
+    }
+
+    const canvas: HTMLCanvasElement = document.createElement('canvas');
+    canvas.width = 640;
+    canvas.height = 200;
+    const ctx: CanvasRenderingContext2D | null = canvas.getContext('2d');
+    if (!ctx) {
+      throw new Error('Canvas not available for level-up rays.');
+    }
+
+    const w: number = canvas.width;
+    const h: number = canvas.height;
+    const gradient: CanvasGradient = ctx.createRadialGradient(w / 2, 0, 10, w / 2, 0, h * 0.9);
+    gradient.addColorStop(0, 'rgba(255, 240, 200, 0.85)');
+    gradient.addColorStop(0.4, 'rgba(255, 200, 120, 0.45)');
+    gradient.addColorStop(1, 'rgba(255, 150, 80, 0)');
+    ctx.fillStyle = gradient;
+    ctx.fillRect(0, 0, w, h);
+
+    ctx.strokeStyle = 'rgba(255, 230, 180, 0.35)';
+    ctx.lineWidth = 2;
+    for (let i: number = 0; i < 10; i += 1) {
+      const x: number = (w / 10) * i + (i % 2 === 0 ? 8 : 0);
+      ctx.beginPath();
+      ctx.moveTo(x, 0);
+      ctx.lineTo(x + w * 0.08, h);
+      ctx.stroke();
+    }
+
+    const texture: Texture = Texture.from(canvas);
+    this.textures.set(cacheKey, texture);
+    return texture;
   }
 
   private isoToScreen(
