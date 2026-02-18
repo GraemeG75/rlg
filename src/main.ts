@@ -50,8 +50,8 @@ import {
   AMBUSH_CHANCE,
   BOSS_MIN_DEPTH,
   COMBAT,
-  LEVEL_XP_BASE,
-  LEVEL_XP_PER_LEVEL,
+  LEVEL_XP_BRACKETS,
+  MONSTER_SCALING,
   MONSTER_SPAWN,
   RENDER_TILE_SIZE,
   SHOP_RESTOCK_INTERVAL
@@ -1423,12 +1423,19 @@ function spawnAmbushMonsters(s: GameState, dungeon: Dungeon, seed: number, playe
  * @returns The monster entity.
  */
 function createMonsterForDepth(depth: number, roll: number, rng: Rng, dungeonId: string, i: number, p: Point, playerLevel: number): Entity {
-  const levelDelta: number = Math.max(0, playerLevel - depth);
-  const effectiveDepth: number = depth + Math.floor(levelDelta / 2);
-  const monsterLevel: number = Math.max(1, Math.floor((depth + playerLevel) / 2));
+  // Monster level scales primarily with player level, with some depth influence
+  const weightedLevel = Math.floor(playerLevel * MONSTER_SCALING.levelPlayerWeight + depth * (1 - MONSTER_SCALING.levelPlayerWeight));
+  const monsterLevel: number = Math.max(MONSTER_SCALING.levelMinimum, weightedLevel);
 
   // Slime: weak, Orc: tougher, Goblin: baseline
   if (roll < 30) {
+    const stats = MONSTER_SCALING.hp.slime;
+    const attackStats = MONSTER_SCALING.attack.slime;
+    const defenseStats = MONSTER_SCALING.defense.slime;
+    const hp = Math.floor(stats.base + monsterLevel * stats.perLevel);
+    const attack = Math.floor(attackStats.base + monsterLevel * attackStats.perLevel);
+    const defense = Math.floor(defenseStats.base + monsterLevel * defenseStats.perLevel);
+
     return {
       id: `m_${dungeonId}_${i}`,
       kind: EntityKind.Monster,
@@ -1436,10 +1443,10 @@ function createMonsterForDepth(depth: number, roll: number, rng: Rng, dungeonId:
       glyph: 's',
       pos: p,
       mapRef: { kind: Mode.Dungeon, dungeonId },
-      hp: 6 + effectiveDepth * 2,
-      maxHp: 6 + effectiveDepth * 2,
-      baseAttack: 2 + Math.floor((effectiveDepth * 2) / 3),
-      baseDefense: Math.max(0, Math.floor(effectiveDepth / 4)),
+      hp,
+      maxHp: hp,
+      baseAttack: attack,
+      baseDefense: defense,
       level: Math.max(monsterLevel, 2),
       xp: 0,
       gold: 0,
@@ -1449,6 +1456,13 @@ function createMonsterForDepth(depth: number, roll: number, rng: Rng, dungeonId:
   }
 
   if (roll < 60) {
+    const stats = MONSTER_SCALING.hp.goblin;
+    const attackStats = MONSTER_SCALING.attack.goblin;
+    const defenseStats = MONSTER_SCALING.defense.goblin;
+    const hp = Math.floor(stats.base + monsterLevel * stats.perLevel);
+    const attack = Math.floor(attackStats.base + monsterLevel * attackStats.perLevel);
+    const defense = Math.floor(defenseStats.base + monsterLevel * defenseStats.perLevel);
+
     return {
       id: `m_${dungeonId}_${i}`,
       kind: EntityKind.Monster,
@@ -1456,10 +1470,10 @@ function createMonsterForDepth(depth: number, roll: number, rng: Rng, dungeonId:
       glyph: 'g',
       pos: p,
       mapRef: { kind: Mode.Dungeon, dungeonId },
-      hp: 9 + effectiveDepth * 3,
-      maxHp: 9 + effectiveDepth * 3,
-      baseAttack: 3 + Math.floor((effectiveDepth * 4) / 3),
-      baseDefense: 1 + Math.floor(effectiveDepth / 2),
+      hp,
+      maxHp: hp,
+      baseAttack: attack,
+      baseDefense: defense,
       level: Math.max(monsterLevel, 3),
       xp: 0,
       gold: 0,
@@ -1469,6 +1483,13 @@ function createMonsterForDepth(depth: number, roll: number, rng: Rng, dungeonId:
   }
 
   if (depth >= 2 && roll < 82) {
+    const stats = MONSTER_SCALING.hp.wraith;
+    const attackStats = MONSTER_SCALING.attack.wraith;
+    const defenseStats = MONSTER_SCALING.defense.wraith;
+    const hp = Math.floor(stats.base + monsterLevel * stats.perLevel);
+    const attack = Math.floor(attackStats.base + monsterLevel * attackStats.perLevel);
+    const defense = Math.floor(defenseStats.base + monsterLevel * defenseStats.perLevel);
+
     return {
       id: `m_${dungeonId}_${i}`,
       kind: EntityKind.Monster,
@@ -1476,10 +1497,10 @@ function createMonsterForDepth(depth: number, roll: number, rng: Rng, dungeonId:
       glyph: 'w',
       pos: p,
       mapRef: { kind: Mode.Dungeon, dungeonId },
-      hp: 12 + effectiveDepth * 3,
-      maxHp: 12 + effectiveDepth * 3,
-      baseAttack: 4 + Math.floor((effectiveDepth * 5) / 3),
-      baseDefense: 2 + Math.floor((effectiveDepth * 2) / 3),
+      hp,
+      maxHp: hp,
+      baseAttack: attack,
+      baseDefense: defense,
       level: Math.max(monsterLevel, 4),
       xp: 0,
       gold: 0,
@@ -1490,6 +1511,13 @@ function createMonsterForDepth(depth: number, roll: number, rng: Rng, dungeonId:
     };
   }
 
+  const stats = MONSTER_SCALING.hp.orc;
+  const attackStats = MONSTER_SCALING.attack.orc;
+  const defenseStats = MONSTER_SCALING.defense.orc;
+  const hp = Math.floor(stats.base + monsterLevel * stats.perLevel);
+  const attack = Math.floor(attackStats.base + monsterLevel * attackStats.perLevel);
+  const defense = Math.floor(defenseStats.base + monsterLevel * defenseStats.perLevel);
+
   return {
     id: `m_${dungeonId}_${i}`,
     kind: EntityKind.Monster,
@@ -1497,10 +1525,10 @@ function createMonsterForDepth(depth: number, roll: number, rng: Rng, dungeonId:
     glyph: 'O',
     pos: p,
     mapRef: { kind: Mode.Dungeon, dungeonId },
-    hp: 16 + effectiveDepth * 4,
-    maxHp: 16 + effectiveDepth * 4,
-    baseAttack: 5 + Math.floor((effectiveDepth * 5) / 3),
-    baseDefense: 3 + Math.floor((effectiveDepth * 2) / 3),
+    hp,
+    maxHp: hp,
+    baseAttack: attack,
+    baseDefense: defense,
     level: Math.max(monsterLevel, 5),
     xp: 0,
     gold: 0,
@@ -2889,7 +2917,19 @@ class CombatEngine {
   }
 
   public xpToNextLevel(level: number): number {
-    return LEVEL_XP_BASE + (level - 1) * LEVEL_XP_PER_LEVEL;
+    let prevMaxLevel = 0;
+    for (const bracket of LEVEL_XP_BRACKETS) {
+      if (level <= bracket.maxLevel) {
+        const levelInBracket = level - prevMaxLevel;
+        const growth = Math.pow(bracket.growthRate, levelInBracket - 1);
+        return Math.floor(bracket.base * growth);
+      }
+      prevMaxLevel = bracket.maxLevel;
+    }
+    const lastBracket = LEVEL_XP_BRACKETS[LEVEL_XP_BRACKETS.length - 1];
+    const levelInBracket = level - prevMaxLevel;
+    const growth = Math.pow(lastBracket.growthRate, levelInBracket - 1);
+    return Math.floor(lastBracket.base * growth);
   }
 
   public awardXp(amount: number): void {

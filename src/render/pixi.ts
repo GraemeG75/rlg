@@ -221,7 +221,7 @@ export class PixiRenderer {
               continue;
             }
             if (vis === TileVisibility.Seen) {
-              tileAlpha = 0.35;
+              tileAlpha = 0.5;
             }
           }
 
@@ -356,7 +356,7 @@ export class PixiRenderer {
           if (ctx.useFov) {
             const vis = getVisibility(dungeon, wx, wy);
             if (vis === TileVisibility.Seen) {
-              tileAlpha = 0.35;
+              tileAlpha = 0.5;
             }
           }
           const tile: DungeonTile = getDungeonTile(dungeon, wx, wy);
