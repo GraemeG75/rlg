@@ -871,6 +871,8 @@ const panelEl: HTMLElement = document.getElementById('panel')!;
 const logEl: HTMLElement = document.getElementById('log')!;
 const todoTitleEl: HTMLElement = document.getElementById('todoTitle')!;
 const todoListEl: HTMLElement = document.getElementById('todoList')!;
+const featuresTitleEl: HTMLElement = document.getElementById('featuresTitle')!;
+const featuresListEl: HTMLElement = document.getElementById('featuresList')!;
 const controlsHintEl: HTMLElement = document.getElementById('controlsHint')!;
 const supportLeadEl: HTMLElement = document.getElementById('supportLead')!;
 const supportLinkEl: HTMLAnchorElement = document.getElementById('supportLink') as HTMLAnchorElement;
@@ -969,6 +971,7 @@ function applyStaticI18n(): void {
   nameLabel.textContent = t('ui.name.label');
   genderLabel.textContent = t('ui.gender.label');
   todoTitleEl.textContent = t('ui.todo.title');
+  featuresTitleEl.textContent = t('ui.features.title');
   pathModeLabel.textContent = t('ui.pathMode.label');
 
   btnCanvas.textContent = t('ui.buttons.canvas');
@@ -3755,6 +3758,19 @@ function render(): void {
     <div>• ${escapeHtml(t('ui.todo.item.stats'))}</div>
     <div>• ${escapeHtml(t('ui.todo.item.ui'))}</div>
     <div>• ${escapeHtml(t('ui.todo.item.graphics'))}</div>
+  `;
+
+  featuresListEl.innerHTML = `
+    <div>✓ ${escapeHtml(t('ui.features.item.procedural'))}</div>
+    <div>✓ ${escapeHtml(t('ui.features.item.dungeons'))}</div>
+    <div>✓ ${escapeHtml(t('ui.features.item.combat'))}</div>
+    <div>✓ ${escapeHtml(t('ui.features.item.towns'))}</div>
+    <div>✓ ${escapeHtml(t('ui.features.item.loot'))}</div>
+    <div>✓ ${escapeHtml(t('ui.features.item.classes'))}</div>
+    <div>✓ ${escapeHtml(t('ui.features.item.progression'))}</div>
+    <div>✓ ${escapeHtml(t('ui.features.item.fov'))}</div>
+    <div>✓ ${escapeHtml(t('ui.features.item.saves'))}</div>
+    <div>✓ ${escapeHtml(t('ui.features.item.renderers'))}</div>
   `;
 
   if (state.mode === Mode.Dead && !isClassModalVisible()) {
