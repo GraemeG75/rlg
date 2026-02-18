@@ -1,4 +1,5 @@
-import { TileVisibility, type Point } from '../core/types';
+import type { Point } from '../types';
+import { TileVisibility } from '../types/enums';
 import { clamp } from '../core/util';
 import type { Dungeon } from '../maps/dungeon';
 import { getDungeonTile, isDungeonOpaque, setVisibility } from '../maps/dungeon';

@@ -1,58 +1,12 @@
 import { Rng } from '../core/rng';
-import { DungeonTile, TileVisibility } from '../core/types';
-import type { Point } from '../core/types';
+import type { Point, Dungeon, DungeonGenerationConfig, AmbushArenaConfig } from '../types';
+import { DungeonTile, TileVisibility, DungeonTheme, DungeonLayout } from '../types/enums';
 
-export enum DungeonTheme {
-  Crypt = 'crypt',
-  Caves = 'caves',
-  Ruins = 'ruins'
-}
-
-export enum DungeonLayout {
-  Rooms = 'rooms',
-  Caves = 'caves'
-}
-
-export type Dungeon = {
-  id: string;
-  baseId: string;
-  depth: number;
-  theme: DungeonTheme;
-  isAmbush?: boolean;
-  ambushCleared?: boolean;
-
-  width: number;
-  height: number;
-
-  tiles: DungeonTile[];
-  visibility: TileVisibility[];
-
-  stairsUp: Point;
-  stairsDown: Point;
-  bossRoom?: { x: number; y: number; w: number; h: number; center: Point };
-};
+// Re-export for backwards compatibility
+export type { Dungeon, DungeonGenerationConfig, AmbushArenaConfig };
+export { DungeonTheme, DungeonLayout };
 
 type Room = { x: number; y: number; w: number; h: number; center: Point };
-
-export type DungeonGenerationConfig = {
-  dungeonId: string;
-  baseId: string;
-  depth: number;
-  seed: number;
-  width: number;
-  height: number;
-  layout: DungeonLayout;
-};
-
-export type AmbushArenaConfig = {
-  dungeonId: string;
-  baseId: string;
-  depth: number;
-  seed: number;
-  width?: number;
-  height?: number;
-  theme?: DungeonTheme;
-};
 
 /**
  * Converts 2D coordinates to a 1D index.

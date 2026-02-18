@@ -1,11 +1,8 @@
-import { OverworldTile, type Point } from '../core/types';
+import type { Point, OverworldNavOptions } from '../types';
+import { OverworldTile } from '../types/enums';
 import { AStarPathfinder } from './astar';
 import { canEnterOverworldTile } from './rules';
 import type { Overworld } from '../maps/overworld';
-export type OverworldNavOptions = {
-  preferRoads: boolean;
-  maxNodes: number;
-};
 
 const TOWN_TILES: ReadonlySet<OverworldTile> = new Set<OverworldTile>([
   OverworldTile.Town,

@@ -1,20 +1,7 @@
-import type { CharacterClass, CharacterStory, Gender } from '../core/types';
+import type { CharacterClass, CharacterStory, Gender, MonsterKey, Pronouns } from '../types';
+import type { GameStateForStory } from '../interfaces';
 import { Rng } from '../core/rng';
 import { t } from '../i18n';
-
-export type MonsterKey = 'slime' | 'goblin' | 'orc' | 'wraith';
-
-export type Pronouns = {
-  subject: string;
-  object: string;
-  possessive: string;
-  reflexive: string;
-};
-
-export interface GameStateForStory {
-  turnCounter: number;
-  story: CharacterStory;
-}
 
 export class StoryManager {
   private readonly STORY_ORIGINS: readonly string[] = ['story.origin.1', 'story.origin.2', 'story.origin.3', 'story.origin.4'];

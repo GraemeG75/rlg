@@ -1,21 +1,6 @@
-import { GearRarity, ItemKind, PanelMode, QuestKind, ShopSpecialty } from '../core/types';
-import type { CharacterStory, Entity, Item, Shop, ShopEconomy } from '../core/types';
+import type { CharacterStory, Entity, Item, Shop, ShopEconomy, PanelContext, Quest } from '../types';
+import { GearRarity, ItemKind, PanelMode, QuestKind, ShopSpecialty } from '../types/enums';
 import { t } from '../i18n';
-
-export type PanelContext = {
-  mode: PanelMode;
-  player: Entity;
-  items: Item[];
-  activeShop?: Shop;
-  canShop: boolean;
-  quests: import('../core/types').Quest[];
-  story: CharacterStory;
-  activeTownId?: string;
-  shopCategory: ShopSpecialty;
-  shopEconomy?: ShopEconomy;
-  shopBuyPrices?: Record<string, number>;
-  shopSellPrices?: Record<string, number>;
-};
 
 /**
  * Renders the side panel based on the current mode.

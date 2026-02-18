@@ -1,5 +1,5 @@
-import { Mode } from '../core/types';
-import type { Entity, Point } from '../core/types';
+import type { Entity, Point } from '../types';
+import { Mode } from '../types/enums';
 import type { Dungeon } from '../maps/dungeon';
 import { AStarPathfinder } from './astar';
 import { canEnterDungeonTile, isBlockedByEntity } from './rules';

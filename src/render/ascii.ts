@@ -1,21 +1,10 @@
-import { DungeonTile, EntityKind, ItemKind, Mode, OverworldTile, TileVisibility, TownTile } from '../core/types';
-import type { Entity, Item } from '../core/types';
+import type { Entity, Item, RenderContext } from '../types';
+import { DungeonTile, EntityKind, ItemKind, Mode, OverworldTile, TileVisibility, TownTile } from '../types/enums';
 import type { Overworld } from '../maps/overworld';
-import type { Dungeon } from '../maps/dungeon';
-import type { Town } from '../maps/town';
+import type { Dungeon } from '../types';
+import type { Town } from '../types';
 import { getDungeonTile, getVisibility } from '../maps/dungeon';
 import { getTownTile } from '../maps/town';
-
-export type RenderContext = {
-  mode: Mode;
-  overworld: Overworld;
-  dungeon: Dungeon | undefined;
-  town: Town | undefined;
-  player: Entity;
-  entities: Entity[];
-  items: Item[];
-  useFov: boolean;
-};
 
 /**
  * Renders a top-down ASCII view of the current game state.

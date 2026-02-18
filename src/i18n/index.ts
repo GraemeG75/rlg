@@ -1,7 +1,7 @@
+import type { I18nVars } from '../types';
 import { en } from './en';
 
 type LocaleKey = 'en';
-export type I18nVars = Record<string, string | number>;
 
 const locales: Record<LocaleKey, Record<string, string>> = { en };
 let currentLocale: LocaleKey = 'en';

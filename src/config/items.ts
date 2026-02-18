@@ -1,42 +1,6 @@
-import { GearRarity } from '../core/types';
+import type { WeaponTemplate, ArmorTemplate, GearAffix, RarityConfig } from '../types';
+import { GearRarity } from '../types/enums';
 import { t } from '../i18n';
-
-export type WeaponTemplate = {
-  noun: string;
-  baseAttack: number;
-  scale: number;
-};
-
-export type ArmorTemplate = {
-  noun: string;
-  baseDefense: number;
-  scale: number;
-};
-
-export type GearAffix = {
-  name: string;
-  attackBonus?: number;
-  defenseBonus?: number;
-  critChance?: number;
-  dodgeChance?: number;
-  lifesteal?: number;
-  thorns?: number;
-};
-
-export type RarityConfig = {
-  key: GearRarity;
-  label: string;
-  namePrefix: string;
-  attackBonus: number;
-  defenseBonus: number;
-  weaponCritChance: number;
-  weaponLifesteal: number;
-  armorDodgeChance: number;
-  armorThorns: number;
-  valueMultiplier: number;
-  baseWeight: number;
-  depthWeight: number;
-};
 
 export const WEAPON_PREFIXES: readonly GearAffix[] = [
   { name: t('weapon.prefix.sunforged'), attackBonus: 1 },

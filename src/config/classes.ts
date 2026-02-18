@@ -1,29 +1,5 @@
-import type { CharacterClass, Entity } from '../core/types';
+import type { CharacterClass, Entity, ClassConfig, GearSpec, ClassGearConfig } from '../types';
 import { t } from '../i18n';
-
-export type ClassConfig = {
-  name: string;
-  description: string;
-  maxHp: number;
-  baseAttack: number;
-  baseDefense: number;
-  strength: number;
-  agility: number;
-  intellect: number;
-};
-
-export type GearSpec = {
-  name: string;
-  attackBonus?: number;
-  defenseBonus?: number;
-  value: number;
-  upgradeName: string;
-};
-
-export type ClassGearConfig = {
-  weapon: GearSpec & { attackBonus: number };
-  armor: GearSpec & { defenseBonus: number };
-};
 
 export const CLASS_CONFIG: Record<CharacterClass, ClassConfig> = {
   warrior: {

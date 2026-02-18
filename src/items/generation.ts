@@ -1,34 +1,10 @@
-import type { Item, CharacterClass } from '../core/types';
-import { ItemKind, GearRarity } from '../core/types';
+import type { Item, RarityConfig, WeaponTemplate, ArmorTemplate, GearAffix, CharacterClass, ClassGearConfig, GearSpec } from '../types';
+import { ItemKind, GearRarity } from '../types/enums';
+import type { GameStateForGear } from '../interfaces';
 import { Rng } from '../core/rng';
 import { t } from '../i18n';
-import {
-  type RarityConfig,
-  type WeaponTemplate,
-  type ArmorTemplate,
-  type GearAffix,
-  RARITY_CONFIGS,
-  WEAPON_BASES,
-  WEAPON_PREFIXES,
-  WEAPON_SUFFIXES,
-  ARMOR_BASES,
-  ARMOR_PREFIXES,
-  ARMOR_SUFFIXES
-} from '../config/items';
-import { type ClassGearConfig, type GearSpec, CLASS_GEAR } from '../config/classes';
-
-export interface GameStateForGear {
-  worldSeed: number;
-  items: Item[];
-  player: {
-    inventory: string[];
-    equipment: {
-      weaponItemId?: string;
-      armorItemId?: string;
-    };
-  };
-  log: string[];
-}
+import { RARITY_CONFIGS, WEAPON_BASES, WEAPON_PREFIXES, WEAPON_SUFFIXES, ARMOR_BASES, ARMOR_PREFIXES, ARMOR_SUFFIXES } from '../config/items';
+import { CLASS_GEAR } from '../config/classes';
 
 export class ItemGenerator {
   private randChoice<T>(arr: readonly T[], rng: Rng): T {

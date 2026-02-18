@@ -1,13 +1,8 @@
-import { TownTile } from '../core/types';
-import type { Point } from '../core/types';
+import type { Point, Town } from '../types';
+import { TownTile } from '../types/enums';
 
-export type Town = {
-  id: string;
-  width: number;
-  height: number;
-  tiles: TownTile[];
-  entrance: Point;
-};
+// Re-export for backwards compatibility
+export type { Town };
 
 /**
  * Converts 2D coordinates to a 1D index.

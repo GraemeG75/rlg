@@ -1,4 +1,4 @@
-import type { Message } from '../core/types';
+import type { Message } from '../types';
 
 /**
  * Fixed-size message log for UI display.

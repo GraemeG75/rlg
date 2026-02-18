@@ -1,23 +1,15 @@
-import type { Item, Shop, ShopEconomy, ShopSpecialty, ItemKind, GearRarity } from '../core/types';
-import { ShopSpecialty as ShopSpecialtyEnum, ItemKind as ItemKindEnum, GearRarity as GearRarityEnum } from '../core/types';
+import type { Item, Shop, ShopEconomy, ShopSpecialty, ItemKind, GearRarity } from '../types';
+import { ShopSpecialty as ShopSpecialtyEnum, ItemKind as ItemKindEnum, GearRarity as GearRarityEnum } from '../types/enums';
+import type { GameStateForShops } from '../interfaces';
 import { Rng } from '../core/rng';
 import { hash2D } from '../core/hash';
 import { SHOP_RESTOCK_INTERVAL } from '../core/const';
 import { t } from '../i18n';
 
-export interface GameStateForShops {
-  turnCounter: number;
-  worldSeed: number;
-  items: Item[];
-  player: {
-    inventory: string[];
-  };
-}
-
 export class ShopManager {
-  public getShopEconomy(s: GameStateForShops, shop: Shop): ShopEconomy {
-    const cycle: number = Math.floor(s.turnCounter / SHOP_RESTOCK_INTERVAL);
-    const seed: number = hash2D(s.worldSeed, shop.townWorldPos.x, shop.townWorldPos.y) ^ (cycle * 0x9e3779b9) ^ 0x5f10;
+  public getShopEconomy(state: GameStateForShops, shop: Shop): ShopEconomy {
+    const cycle: number = Math.floor(state.turnCounter / SHOP_RESTOCK_INTERVAL);
+    const seed: number = hash2D(state.worldSeed, shop.townWorldPos.x, shop.townWorldPos.y) ^ (cycle * 0x9e3779b9) ^ 0x5f10;
     const rng: Rng = new Rng(seed);
 
     const moodRoll: number = rng.nextInt(0, 100);
@@ -43,7 +35,7 @@ export class ShopManager {
     }
 
     const featuredItemId: string | undefined = this.getFeaturedShopItemId(shop, rng);
-    const restockIn: number = SHOP_RESTOCK_INTERVAL - (s.turnCounter % SHOP_RESTOCK_INTERVAL);
+    const restockIn: number = SHOP_RESTOCK_INTERVAL - (state.turnCounter % SHOP_RESTOCK_INTERVAL);
 
     return { moodLabel, specialty, buyMultiplier, sellMultiplier, featuredItemId, restockIn };
   }
@@ -116,23 +108,23 @@ export class ShopManager {
   }
 
   public buildShopPricing(
-    s: GameStateForShops,
+    state: GameStateForShops,
     shop: Shop
   ): { economy: ShopEconomy; buyPrices: Record<string, number>; sellPrices: Record<string, number> } {
-    const economy: ShopEconomy = this.getShopEconomy(s, shop);
+    const economy: ShopEconomy = this.getShopEconomy(state, shop);
     const buyPrices: Record<string, number> = {};
     const sellPrices: Record<string, number> = {};
 
     for (const id of shop.stockItemIds) {
-      const it: Item | undefined = s.items.find((x) => x.id === id);
+      const it: Item | undefined = state.items.find((x) => x.id === id);
       if (!it) {
         continue;
       }
       buyPrices[id] = this.getShopBuyPrice(shop, it, economy);
     }
 
-    for (const iid of s.player.inventory) {
-      const it: Item | undefined = s.items.find((x) => x.id === iid);
+    for (const iid of state.player.inventory) {
+      const it: Item | undefined = state.items.find((x) => x.id === iid);
       if (!it) {
         continue;
       }

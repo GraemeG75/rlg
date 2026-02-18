@@ -1,12 +1,5 @@
-import type { Point } from '../core/types';
+import type { Point, MinimapContext } from '../types';
 import type { Overworld } from '../maps/overworld';
-
-export type MinimapContext = {
-  overworld: Overworld;
-  playerPos: Point;
-  destination?: Point;
-  discoveredPois: { kind: 'town' | 'dungeon' | 'cave'; pos: Point }[];
-};
 
 /**
  * Draws the minimap onto a canvas context.

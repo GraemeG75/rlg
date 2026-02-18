@@ -1,13 +1,5 @@
-import type { Entity, Item, Point } from '../core/types';
+import type { Entity, Item, Point, OverworldMapContext } from '../types';
 import type { Overworld } from '../maps/overworld';
-
-export type OverworldMapContext = {
-  overworld: Overworld;
-  player: Entity;
-  destination?: Point;
-  autoPath?: Point[];
-  items: Item[];
-};
 
 /**
  * Renders a small ASCII map of the overworld around the player.

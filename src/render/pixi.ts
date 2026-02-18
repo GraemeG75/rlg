@@ -1,12 +1,12 @@
 import { Application, Container, Sprite, Texture, TilingSprite } from 'pixi.js';
-import { DungeonTile, EntityKind, ItemKind, Mode, OverworldTile, TileVisibility, TownTile } from '../core/types';
-import type { Entity, Item } from '../core/types';
+import type { Entity, Item } from '../types';
+import { DungeonTile, EntityKind, ItemKind, Mode, OverworldTile, TileVisibility, TownTile, PixiRenderMode } from '../types/enums';
 import type { Overworld } from '../maps/overworld';
 import type { Dungeon } from '../maps/dungeon';
 import { DungeonTheme, getDungeonTile, getVisibility } from '../maps/dungeon';
 import { getTownTile } from '../maps/town';
 import type { Town } from '../maps/town';
-import { SpriteAtlas, type SpriteKey } from './sprites';
+import { SpriteAtlas } from './sprites';
 import { t } from '../i18n';
 import { OVERWORLD_HEIGHT, RENDER_RESOLUTION, RENDER_TILE_SIZE } from '../core/const';
 
@@ -23,11 +23,6 @@ type PixiRenderContext = {
 
 type IsoMode = Mode.Overworld | Mode.Dungeon | Mode.Town;
 type IsoTile = OverworldTile | DungeonTile | TownTile;
-
-export enum PixiRenderMode {
-  Canvas = 'canvas',
-  Isometric = 'isometric'
-}
 
 /**
  * Renderer implementation using Pixi.js. Uses a single sprite sheet for all tiles and entities, with dynamic texture generation for things like lighting and isometric rendering.

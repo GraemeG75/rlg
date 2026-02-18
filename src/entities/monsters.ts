@@ -1,38 +1,30 @@
-import type { Entity, Point } from '../core/types';
-import { EntityKind, Mode, DungeonTile } from '../core/types';
-import type { Dungeon } from '../maps/dungeon';
+import type { Entity, Point, Dungeon } from '../types';
+import { EntityKind, Mode, DungeonTile } from '../types/enums';
+import type { GameStateForMonsters } from '../interfaces';
 import { getDungeonTile, randomFloorPoint } from '../maps/dungeon';
 import { Rng } from '../core/rng';
 import { MONSTER_SCALING, MONSTER_SPAWN } from '../core/const';
 import { StoryManager } from '../game/story';
 
-export interface GameStateForMonsters {
-  rng: Rng;
-  player: {
-    level: number;
-  };
-  entities: Entity[];
-}
-
 export class MonsterManager {
   constructor(private storyManager: StoryManager) {}
 
-  public spawnMonstersInDungeon(s: GameStateForMonsters, dungeon: Dungeon, seed: number): void {
+  public spawnMonstersInDungeon(state: GameStateForMonsters, dungeon: Dungeon, seed: number): void {
     const monsterCount: number = MONSTER_SPAWN.baseCount + Math.min(MONSTER_SPAWN.depthCap, dungeon.depth * MONSTER_SPAWN.depthMultiplier);
     const rng: Rng = new Rng(seed ^ 0xbeef);
-    const playerLevel: number = s.player.level;
+    const playerLevel: number = state.player.level;
 
     for (let i: number = 0; i < monsterCount; i++) {
       const p: Point = randomFloorPoint(dungeon, seed + 1000 + i * 17);
 
       const roll: number = rng.nextInt(0, 100);
-      const monster = this.createMonsterForDepth(dungeon.depth, roll, s.rng, dungeon.id, i, p, playerLevel);
+      const monster = this.createMonsterForDepth(dungeon.depth, roll, state.rng, dungeon.id, i, p, playerLevel);
 
-      s.entities.push(monster);
+      state.entities.push(monster);
     }
   }
 
-  public spawnAmbushMonsters(s: GameStateForMonsters, dungeon: Dungeon, seed: number, playerLevel: number): void {
+  public spawnAmbushMonsters(state: GameStateForMonsters, dungeon: Dungeon, seed: number, playerLevel: number): void {
     const rng: Rng = new Rng(seed ^ 0xa51d);
     const desired: number = Math.max(
       MONSTER_SPAWN.ambushMin,
@@ -65,8 +57,8 @@ export class MonsterManager {
       }
 
       const roll: number = rng.nextInt(0, 100);
-      const monster: Entity = this.createMonsterForDepth(depth, roll, s.rng, dungeon.id, i, spawn, playerLevel);
-      s.entities.push(monster);
+      const monster: Entity = this.createMonsterForDepth(depth, roll, state.rng, dungeon.id, i, spawn, playerLevel);
+      state.entities.push(monster);
     }
   }
 

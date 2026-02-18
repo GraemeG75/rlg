@@ -1,14 +1,5 @@
-import type { Point } from '../core/types';
+import type { Point, AStarCostFn, AStarSearchOptions } from '../types';
 import { manhattan, keyPoint, parseKeyPoint } from '../core/util';
-
-export type AStarCostFn = (p: Point) => number;
-
-export type AStarSearchOptions = {
-  isWalkable: (p: Point) => boolean;
-  isBlocked?: (p: Point) => boolean;
-  stepCost?: AStarCostFn;
-  maxIterations?: number;
-};
 
 /**
  * Configurable A* pathfinder that can be reused across systems.
