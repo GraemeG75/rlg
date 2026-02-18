@@ -90,7 +90,7 @@ export const COMBAT = {
     rollMaxExclusive: 6,
     playerDefMultiplier: 0.9,
     mageDefMultiplier: 0.5,
-    monsterDamageMultiplier: 1.15
+    monsterDamageMultiplier: 1.1
   },
   lifestealCap: 50,
   thornsCap: 20,
