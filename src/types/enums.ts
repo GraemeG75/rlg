@@ -131,7 +131,8 @@ export enum DungeonTheme {
 
 export enum DungeonLayout {
   Rooms = 'rooms',
-  Caves = 'caves'
+  Caves = 'caves',
+  Maze = 'maze'
 }
 
 export enum PixiRenderMode {

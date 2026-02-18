@@ -1,6 +1,6 @@
 import { Application, Container, Sprite, Texture, TilingSprite } from 'pixi.js';
-import type { Entity, Item } from '../types';
-import { DungeonTile, EntityKind, ItemKind, Mode, OverworldTile, TileVisibility, TownTile, PixiRenderMode } from '../types/enums';
+import type { Entity, Item, SpriteKey } from '../types';
+import { DungeonTile, EntityKind, ItemKind, Mode, OverworldTile, TileVisibility, TownTile, PixiRenderMode, DungeonLayout } from '../types/enums';
 import type { Overworld } from '../maps/overworld';
 import type { Dungeon } from '../maps/dungeon';
 import { DungeonTheme, getDungeonTile, getVisibility } from '../maps/dungeon';
@@ -222,7 +222,7 @@ export class PixiRenderer {
 
           const dist: number = Math.max(Math.abs(x), Math.abs(y));
           const lightFactor: number = this.lightFalloff(dist, lightRadius);
-          sprite.texture = this.getTexture(this.dungeonKey(dungeon.theme, tile));
+          sprite.texture = this.getTexture(this.dungeonKey(dungeon.theme, dungeon.layout, tile));
           sprite.alpha = tileAlpha * lightFactor;
           sprite.visible = true;
 
@@ -1916,12 +1916,31 @@ export class PixiRenderer {
   }
 
   /**
-   * Maps dungeon tiles to sprite keys based on theme.
+   * Maps dungeon tiles to sprite keys based on theme and layout.
    * @param theme The dungeon theme.
+   * @param layout The dungeon layout.
    * @param tile The dungeon tile id.
    * @returns The sprite key for the tile.
    */
-  private dungeonKey(theme: DungeonTheme, tile: DungeonTile): SpriteKey {
+  private dungeonKey(theme: DungeonTheme, layout: DungeonLayout, tile: DungeonTile): SpriteKey {
+    // Maze dungeons have distinct visual appearance
+    if (layout === DungeonLayout.Maze) {
+      switch (tile) {
+        case DungeonTile.Wall:
+          return 'dg_wall_maze';
+        case DungeonTile.Floor:
+          return 'dg_floor_maze';
+        case DungeonTile.BossFloor:
+          return 'dg_boss_floor_maze';
+        case DungeonTile.StairsUp:
+        case DungeonTile.StairsDown:
+          return 'dg_stairs_maze';
+        default:
+          return 'dg_floor_maze';
+      }
+    }
+
+    // Regular dungeons use theme-based sprites
     switch (tile) {
       case DungeonTile.Wall:
         return theme === DungeonTheme.Caves ? 'dg_wall_caves' : theme === DungeonTheme.Crypt ? 'dg_wall_crypt' : 'dg_wall_ruins';

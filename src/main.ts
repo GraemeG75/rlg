@@ -3323,7 +3323,14 @@ function monstersTurn(): void {
  * @param entranceKind The entrance kind.
  */
 function enterDungeonAt(worldPos: Point, entranceKind: 'dungeon' | 'cave'): void {
-  const layout: DungeonLayout = entranceKind === 'cave' ? DungeonLayout.Caves : DungeonLayout.Rooms;
+  let layout: DungeonLayout;
+  if (entranceKind === 'cave') {
+    layout = DungeonLayout.Caves;
+  } else {
+    // Randomly choose between Rooms and Maze for regular dungeons
+    const layoutChoice = new Rng(hash2D(state.worldSeed, worldPos.x, worldPos.y) ^ state.turnCounter).nextInt(0, 100);
+    layout = layoutChoice < 40 ? DungeonLayout.Maze : DungeonLayout.Rooms;
+  }
   const baseId: string =
     entranceKind === 'cave'
       ? caveBaseIdFromWorldPos(state.worldSeed, worldPos.x, worldPos.y)

@@ -82,7 +82,14 @@ export class DungeonGenerator {
    * @returns The generated dungeon.
    */
   public generate(): Dungeon {
-    return this.config.layout === DungeonLayout.Caves ? this.generateCaveLayout() : this.generateRoomLayout();
+    switch (this.config.layout) {
+      case DungeonLayout.Caves:
+        return this.generateCaveLayout();
+      case DungeonLayout.Maze:
+        return this.generateMazeLayout();
+      default:
+        return this.generateRoomLayout();
+    }
   }
 
   /**
@@ -188,6 +195,7 @@ export class DungeonGenerator {
       baseId,
       depth,
       theme,
+      layout: this.config.layout,
       width,
       height,
       tiles,
@@ -195,6 +203,95 @@ export class DungeonGenerator {
       stairsUp,
       stairsDown,
       bossRoom: bossRoom ? { ...bossRoom } : undefined
+    };
+  }
+
+  /**
+   * Generates a dungeon layout with a maze.
+   * @returns The generated dungeon layout.
+   */
+  private generateMazeLayout(): Dungeon {
+    const { dungeonId, baseId, depth, seed, width, height } = this.config;
+    const rng: Rng = new Rng(seed ^ 0x4a7c92d3);
+    const tiles: DungeonTile[] = new Array<DungeonTile>(width * height).fill(DungeonTile.Wall);
+    const visibility: TileVisibility[] = new Array<TileVisibility>(width * height).fill(TileVisibility.Unseen);
+
+    // Generate maze using recursive backtracking
+    const visited: Set<string> = new Set<string>();
+    const directions: Array<[number, number]> = [
+      [0, -2], // Up
+      [2, 0], // Right
+      [0, 2], // Down
+      [-2, 0] // Left
+    ];
+
+    const carvePassage = (x: number, y: number): void => {
+      visited.add(`${x},${y}`);
+      tiles[idx(x, y, width)] = DungeonTile.Floor;
+
+      // Shuffle directions for randomness
+      const shuffled = directions.map((d) => d).sort(() => rng.nextInt(0, 2) - 1);
+
+      for (const [dx, dy] of shuffled) {
+        const nx: number = x + dx;
+        const ny: number = y + dy;
+
+        if (nx > 0 && nx < width - 1 && ny > 0 && ny < height - 1 && !visited.has(`${nx},${ny}`)) {
+          // Carve passage between cells
+          tiles[idx(x + dx / 2, y + dy / 2, width)] = DungeonTile.Floor;
+          carvePassage(nx, ny);
+        }
+      }
+    };
+
+    // Start maze generation from a random odd position
+    const startX: number = 1 + rng.nextInt(0, Math.floor((width - 2) / 2)) * 2;
+    const startY: number = 1 + rng.nextInt(0, Math.floor((height - 2) / 2)) * 2;
+    carvePassage(startX, startY);
+
+    // Find all floor tiles
+    const floors: Point[] = [];
+    for (let y: number = 1; y < height - 1; y++) {
+      for (let x: number = 1; x < width - 1; x++) {
+        if (tiles[idx(x, y, width)] === DungeonTile.Floor) {
+          floors.push({ x, y });
+        }
+      }
+    }
+
+    // Place stairs at far corners
+    const stairsUp: Point = floors.length > 0 ? floors[0] : { x: 1, y: 1 };
+    let stairsDown: Point = stairsUp;
+
+    if (floors.length > 1) {
+      let maxDist: number = 0;
+      for (const floor of floors) {
+        const dist: number = Math.abs(floor.x - stairsUp.x) + Math.abs(floor.y - stairsUp.y);
+        if (dist > maxDist) {
+          maxDist = dist;
+          stairsDown = floor;
+        }
+      }
+    }
+
+    tiles[idx(stairsUp.x, stairsUp.y, width)] = DungeonTile.StairsUp;
+    tiles[idx(stairsDown.x, stairsDown.y, width)] = DungeonTile.StairsDown;
+
+    const theme: DungeonTheme = this.pickTheme(depth);
+
+    return {
+      id: dungeonId,
+      baseId,
+      depth,
+      theme,
+      layout: this.config.layout,
+      width,
+      height,
+      tiles,
+      visibility,
+      stairsUp,
+      stairsDown,
+      bossRoom: undefined
     };
   }
 
@@ -279,6 +376,7 @@ export class DungeonGenerator {
       baseId,
       depth,
       theme: DungeonTheme.Caves,
+      layout: this.config.layout,
       width,
       height,
       tiles,
@@ -353,6 +451,7 @@ export function generateAmbushArena(config: AmbushArenaConfig): Dungeon {
     baseId: config.baseId,
     depth: config.depth,
     theme,
+    layout: DungeonLayout.Rooms,
     isAmbush: true,
     ambushCleared: false,
     width,

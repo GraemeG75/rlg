@@ -6,6 +6,7 @@ export type Dungeon = {
   baseId: string;
   depth: number;
   theme: DungeonTheme;
+  layout: DungeonLayout;
   isAmbush?: boolean;
   ambushCleared?: boolean;
 

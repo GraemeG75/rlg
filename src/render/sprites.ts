@@ -51,9 +51,13 @@ const SPRITE_SHEET_TILES: readonly SheetEntry[] = [
   { key: 'dg_floor_crypt', x: 16, y: 64 },
   { key: 'dg_boss_floor_crypt', x: 32, y: 64 },
   { key: 'dg_stairs_crypt', x: 48, y: 64 },
-  { key: 'it_potion', x: 0, y: 80 },
-  { key: 'it_weapon', x: 16, y: 80 },
-  { key: 'it_armor', x: 32, y: 80 }
+  { key: 'dg_wall_maze', x: 0, y: 80 },
+  { key: 'dg_floor_maze', x: 16, y: 80 },
+  { key: 'dg_boss_floor_maze', x: 32, y: 80 },
+  { key: 'dg_stairs_maze', x: 48, y: 80 },
+  { key: 'it_potion', x: 0, y: 96 },
+  { key: 'it_weapon', x: 16, y: 96 },
+  { key: 'it_armor', x: 32, y: 96 }
 ] as const;
 
 /**
@@ -258,6 +262,24 @@ export class SpriteAtlas {
     this.sprites.set(
       'dg_stairs_crypt',
       this.make((c) => this.patternStairs(c, '#2c1231', '#e6d7ff'))
+    );
+
+    // Maze dungeons (distinct visual theme with purple/golden colors)
+    this.sprites.set(
+      'dg_wall_maze',
+      this.make((c) => this.patternStone(c, '#3d2645', '#5a3d6f'))
+    );
+    this.sprites.set(
+      'dg_floor_maze',
+      this.make((c) => this.patternFloor(c, '#2a1a3a', '#3d2650'))
+    );
+    this.sprites.set(
+      'dg_boss_floor_maze',
+      this.make((c) => this.patternBossFloor(c, '#2a1a3a', '#3d2650', '#d4a95c'))
+    );
+    this.sprites.set(
+      'dg_stairs_maze',
+      this.make((c) => this.patternStairs(c, '#3d2645', '#e6c800'))
     );
 
     // Entities/items
