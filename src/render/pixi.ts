@@ -394,6 +394,18 @@ export class PixiRenderer {
         glow.alpha = pulse;
         this.overlayLayer.addChild(glow);
       }
+
+      // Add glow effect to shop and tavern buildings in town
+      if (t.kind === Mode.Town && (t.tile === TownTile.Shop || t.tile === TownTile.Tavern)) {
+        const glow = new Sprite(this.getIsoShopGlowTexture(isoTileW, isoTileH, t.tile === TownTile.Tavern));
+        const pulse: number = 0.4 + Math.sin(now / 600 + this.phaseFromId(`${t.wx},${t.wy}`)) * 0.25;
+        glow.x = screen.x;
+        glow.y = screen.y - tileHeight;
+        glow.width = isoTileW;
+        glow.height = isoTileH;
+        glow.alpha = pulse;
+        this.overlayLayer.addChild(glow);
+      }
     }
 
     // Highlight the player's tile for readability (under entities).
@@ -619,6 +631,61 @@ export class PixiRenderer {
     gradient.addColorStop(0, 'rgba(255, 210, 130, 0.9)');
     gradient.addColorStop(0.55, 'rgba(255, 150, 70, 0.45)');
     gradient.addColorStop(1, 'rgba(255, 120, 50, 0)');
+    ctx.fillStyle = gradient;
+    ctx.fillRect(0, 0, w, h);
+    ctx.restore();
+
+    const texture: Texture = Texture.from(canvas);
+    this.textures.set(cacheKey, texture);
+    return texture;
+  }
+
+  /**
+   * Creates a glow texture for shop/tavern buildings in isometric view.
+   * @param isoTileW The width of the isometric tile.
+   * @param isoTileH The height of the isometric tile.
+   * @param isTavern Whether this is a tavern (true) or shop (false).
+   * @returns The generated texture.
+   */
+  private getIsoShopGlowTexture(isoTileW: number, isoTileH: number, isTavern: boolean): Texture {
+    const cacheKey: string = `iso_shop_glow_${isoTileW}x${isoTileH}_${isTavern ? 'tavern' : 'shop'}`;
+    const cached: Texture | undefined = this.textures.get(cacheKey);
+    if (cached) {
+      return cached;
+    }
+
+    const canvas: HTMLCanvasElement = document.createElement('canvas');
+    canvas.width = isoTileW;
+    canvas.height = isoTileH;
+    const ctx: CanvasRenderingContext2D | null = canvas.getContext('2d');
+    if (!ctx) {
+      throw new Error('Canvas not available for iso shop glow.');
+    }
+
+    const w: number = canvas.width;
+    const h: number = canvas.height;
+
+    ctx.clearRect(0, 0, w, h);
+    ctx.save();
+    ctx.beginPath();
+    ctx.moveTo(w / 2, 0);
+    ctx.lineTo(w, h / 2);
+    ctx.lineTo(w / 2, h);
+    ctx.lineTo(0, h / 2);
+    ctx.closePath();
+    ctx.clip();
+
+    // Shop has a warm golden glow, tavern has a reddish glow
+    const gradient: CanvasGradient = ctx.createRadialGradient(w / 2, h / 2, 1, w / 2, h / 2, w * 0.55);
+    if (isTavern) {
+      gradient.addColorStop(0, 'rgba(255, 180, 100, 0.8)');
+      gradient.addColorStop(0.55, 'rgba(200, 100, 50, 0.4)');
+      gradient.addColorStop(1, 'rgba(150, 70, 30, 0)');
+    } else {
+      gradient.addColorStop(0, 'rgba(255, 220, 150, 0.9)');
+      gradient.addColorStop(0.55, 'rgba(200, 180, 80, 0.45)');
+      gradient.addColorStop(1, 'rgba(180, 160, 60, 0)');
+    }
     ctx.fillStyle = gradient;
     ctx.fillRect(0, 0, w, h);
     ctx.restore();
@@ -1052,11 +1119,16 @@ export class PixiRenderer {
   private isoTileHeight(kind: IsoMode, tile: IsoTile, isoTileH: number): number {
     const low: number = Math.max(2, Math.floor(isoTileH * 0.2));
     const high: number = Math.max(5, Math.floor(isoTileH * 0.8));
+    const veryHigh: number = Math.max(8, Math.floor(isoTileH * 1.2)); // For prominent buildings
 
     if (kind === Mode.Dungeon) {
       return tile === DungeonTile.Wall ? high : low;
     }
     if (kind === Mode.Town) {
+      // Make shop and tavern taller and more prominent
+      if (tile === TownTile.Shop || tile === TownTile.Tavern) {
+        return veryHigh;
+      }
       return tile === TownTile.Wall ? high : low;
     }
     if (kind === Mode.Overworld) {

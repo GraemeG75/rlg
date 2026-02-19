@@ -23,6 +23,12 @@ export class ItemGenerator {
     return parts.join(' ');
   }
 
+  /**
+   *
+   * @param power
+   * @param rng
+   * @returns
+   */
   public rollRarity(power: number, rng: Rng): RarityConfig {
     const depthFactor: number = Math.max(0, power - 1);
     const weights: number[] = [];

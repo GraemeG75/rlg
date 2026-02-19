@@ -922,6 +922,8 @@ const deathBannerEl: HTMLElement = document.getElementById('deathBanner')!;
 const deathSubtitleEl: HTMLElement = document.getElementById('deathSubtitle')!;
 const deathStoryEl: HTMLElement = document.getElementById('deathStory')!;
 const btnNewGame: HTMLButtonElement = document.getElementById('btnNewGame') as HTMLButtonElement;
+const shopModal: HTMLElement = document.getElementById('shopModal')!;
+const shopModalContent: HTMLElement = document.getElementById('shopModalContent')!;
 
 type SaveModalMode = 'export' | 'import';
 let saveModalMode: SaveModalMode = 'export';
@@ -1237,6 +1239,36 @@ function showClassModal(): void {
  */
 function isClassModalVisible(): boolean {
   return !classModal.classList.contains('hidden');
+}
+
+function showShopModal(): void {
+  const townPos: Point | undefined = getActiveTownWorldPos();
+  const shop: Shop | undefined = townPos ? ensureShopForTown(state, townPos) : undefined;
+  if (!shop) {
+    state.log.push(t('log.shop.find'));
+    return;
+  }
+
+  const panelContext: PanelContext = {
+    mode: PanelMode.Shop,
+    player: state.player,
+    items: state.items,
+    activeShop: shop,
+    canShop: true,
+    quests: state.quests,
+    activeTownId: townPos?.toString(),
+    shopCategory: state.shopCategory,
+    shopEconomy: undefined,
+    shopBuyPrices: undefined,
+    shopSellPrices: undefined
+  };
+
+  shopModalContent.innerHTML = renderPanelHtml(panelContext) + `<button data-close-shop>Close Shop</button>`;
+  shopModal.classList.remove('hidden');
+}
+
+function closeShopModal(): void {
+  shopModal.classList.add('hidden');
 }
 
 /**
@@ -2508,17 +2540,11 @@ function handleAction(action: Action): void {
   }
 
   if (action.kind === ActionKind.ToggleShop) {
-    if (state.activePanel === PanelMode.Shop) {
-      state.activePanel = PanelMode.None;
-      render();
-      return;
-    }
     if (!canOpenShopHere()) {
       state.log.push(t('log.shop.find'));
       render();
       return;
     }
-    state.activePanel = PanelMode.Shop;
     const townPos: Point | undefined = getActiveTownWorldPos();
     if (townPos) {
       ensureShopForTown(state, townPos);
@@ -2526,6 +2552,7 @@ function handleAction(action: Action): void {
       const shopNow: Shop = ensureShopForTown(state, townPos);
       maybeRestockShop(state, shopNow);
     }
+    showShopModal();
     render();
     return;
   }
@@ -4355,9 +4382,14 @@ btnInv.addEventListener('click', () => {
   render();
 });
 btnShop.addEventListener('click', () => {
-  state.activePanel = state.activePanel === PanelMode.Shop ? PanelMode.None : PanelMode.Shop;
-  if (state.activePanel === PanelMode.Shop && isStandingOnTown()) {
+  if (isStandingOnTown()) {
     ensureShopForTown(state, state.player.pos);
+    ensureQuestForTown(state, state.player.pos);
+    const shopNow: Shop = ensureShopForTown(state, state.player.pos);
+    maybeRestockShop(state, shopNow);
+    showShopModal();
+  } else {
+    state.log.push(t('log.shop.find'));
   }
   render();
 });
@@ -4383,6 +4415,26 @@ classButtons.forEach((btn) => {
     }
     startNewRun(choice);
   });
+});
+
+// Shop modal click handler
+shopModalContent.addEventListener('click', (e) => {
+  const target = e.target as HTMLElement;
+  if (target.getAttribute('data-close-shop') !== null) {
+    closeShopModal();
+    render();
+  } else if (target.getAttribute('data-act')) {
+    // Handle item purchases, category filters, etc
+    render();
+  }
+});
+
+// Close shop modal on Escape key
+document.addEventListener('keydown', (e) => {
+  if (e.key === 'Escape' && !shopModal.classList.contains('hidden')) {
+    closeShopModal();
+    render();
+  }
 });
 
 nameInput.addEventListener('input', () => {

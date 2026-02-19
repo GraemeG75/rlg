@@ -32,6 +32,9 @@
       name="theme-color"
       content="#1b140e" />
     <link
+      rel="stylesheet"
+      href="/styles.css" />
+    <link
       rel="canonical"
       href="https://ancientrealmsofmystery.com/" />
     <meta
@@ -77,658 +80,13 @@
         "operatingSystem": "Any"
       }
     </script>
-    <style>
-      :root {
-        color-scheme: dark;
-        --bg-ink: #1b140e;
-        --bg-shadow: #0d0a08;
-        --panel: #241b13;
-        --panel-edge: #3a2c1e;
-        --panel-highlight: #2d2117;
-        --text: #f3e8d3;
-        --muted: #c7b79b;
-        --accent: #d7b46a;
-        --accent-deep: #9a6b2f;
-        --blood: #6b2c24;
-        --emerald: #2c6144;
-      }
-      body {
-        background:
-          radial-gradient(circle at top, rgba(76, 55, 34, 0.45), transparent 55%),
-          repeating-linear-gradient(135deg, rgba(255, 255, 255, 0.02) 0 6px, rgba(0, 0, 0, 0.02) 6px 12px),
-          linear-gradient(180deg, var(--bg-ink), var(--bg-shadow));
-        color: var(--text);
-        font-family: Georgia, 'Times New Roman', serif;
-        margin: 0;
-        padding: 12px;
-      }
-      .wrap {
-        display: grid;
-        grid-template-columns: minmax(0, 1fr) 420px;
-        gap: 14px;
-        align-items: start;
-      }
-      #ascii {
-        white-space: pre;
-        line-height: 1.05em;
-        font-size: 18px;
-        border: 1px solid var(--panel-edge);
-        border-radius: 12px;
-        padding: 12px;
-        background: linear-gradient(180deg, #1a130d, #140f0b);
-        box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.02);
-        min-height: 560px;
-      }
-      #hudBar {
-        border: 1px solid var(--panel-edge);
-        border-radius: 12px;
-        padding: 10px 12px;
-        background: linear-gradient(180deg, #1b140e, #140f0b);
-        box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.02);
-      }
-      .hudBarRow {
-        display: grid;
-        grid-template-columns: repeat(2, minmax(0, 1fr));
-        gap: 12px;
-        align-items: center;
-      }
-      .hudBarItem {
-        display: grid;
-        gap: 4px;
-      }
-      .hudBarLabel {
-        font-size: 14px;
-        color: var(--muted);
-      }
-      .hudBarTrack {
-        position: relative;
-        height: 14px;
-        background: #1c140f;
-        border: 1px solid var(--panel-edge);
-        border-radius: 999px;
-        overflow: hidden;
-      }
-      .hudBarFill {
-        height: 100%;
-        width: 0;
-      }
-      .hudBarFill.hp {
-        background: linear-gradient(90deg, #6b2c24, #b04a3d);
-      }
-      .hudBarFill.xp {
-        background: linear-gradient(90deg, #6f5a2c, #d7b46a);
-      }
-      .hudBarText {
-        position: absolute;
-        inset: 0;
-        display: flex;
-        align-items: center;
-        justify-content: center;
-        font-size: 13px;
-        color: #f3e8d3;
-        text-shadow: 0 1px 2px rgba(0, 0, 0, 0.6);
-      }
-      #canvasWrap {
-        border: 1px solid var(--panel-edge);
-        border-radius: 12px;
-        background: linear-gradient(180deg, #1a130d, #140f0b);
-        padding: 12px;
-        width: fit-content;
-        box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.02);
-      }
-      #gameCanvas {
-        image-rendering: pixelated;
-        width: 100%;
-        height: auto;
-        border-radius: 8px;
-      }
-      #side {
-        border: 1px solid var(--panel-edge);
-        border-radius: 12px;
-        padding: 12px;
-        background: linear-gradient(180deg, var(--panel), var(--panel-highlight));
-        box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.03);
-      }
-      #log {
-        margin-top: 10px;
-        `
-        padding-top: 10px;
-        max-height: 220px;
-        overflow: auto;
-      }
-      #todo, #features {
-        margin-top: 10px;
-        border-top: 1px solid var(--panel-edge);
-        padding-top: 10px;
-        max-height: 180px;
-        overflow: auto;
-      }
-      #panel {
-        margin-top: 10px;
-        border-top: 1px solid var(--panel-edge);
-        padding-top: 10px;
-        max-height: 320px;
-        overflow: auto;
-      }
-      #minimapWrap {
-        margin-top: 10px;
-        border: 1px solid var(--panel-edge);
-        border-radius: 12px;
-        padding: 8px;
-        background: linear-gradient(180deg, #1a130d, #140f0b);
-      }
-      #minimapTitle {
-        font-size: 13px;
-        color: var(--muted);
-        margin-bottom: 6px;
-      }
-      #minimap {
-        display: block;
-        width: 100%;
-        height: auto;
-        border-radius: 8px;
-        image-rendering: pixelated;
-      }
-      .hint {
-        color: var(--muted);
-        font-size: 14px;
-      }
-      .row {
-        display: flex;
-        gap: 8px;
-        flex-wrap: wrap;
-        align-items: center;
-      }
-      .menu {
-        position: relative;
-      }
-      .menu summary {
-        list-style: none;
-      }
-      .menu summary::-webkit-details-marker {
-        display: none;
-      }
-      .menu summary::after {
-        content: '▾';
-        margin-left: 6px;
-        font-size: 12px;
-        color: var(--muted);
-      }
-      .menuList {
-        position: absolute;
-        top: 110%;
-        left: 0;
-        min-width: 180px;
-        padding: 8px;
-        display: grid;
-        gap: 6px;
-        background: linear-gradient(180deg, #221a12, #1a140e);
-        border: 1px solid var(--panel-edge);
-        border-radius: 12px;
-        box-shadow: 0 12px 28px rgba(0, 0, 0, 0.4);
-        z-index: 10;
-      }
-      .menuList button {
-        width: 100%;
-        text-align: left;
-      }
-      .menuLabel {
-        font-size: 13px;
-        text-transform: uppercase;
-        letter-spacing: 0.12em;
-        color: #e6d3ad;
-        margin-top: 2px;
-      }
-      button {
-        background: linear-gradient(180deg, #2e2217, #20160f);
-        color: var(--text);
-        border: 1px solid var(--panel-edge);
-        border-radius: 10px;
-        padding: 8px 12px;
-        cursor: pointer;
-        box-shadow: 0 2px 0 rgba(0, 0, 0, 0.25);
-        font-family: Georgia, 'Times New Roman', serif;
-        letter-spacing: 0.02em;
-      }
-      summary.btnTiny,
-      select.btnTiny {
-        background: linear-gradient(180deg, #2e2217, #20160f);
-        color: var(--text);
-        border: 1px solid var(--panel-edge);
-        border-radius: 10px;
-        padding: 6px 10px;
-        cursor: pointer;
-        box-shadow: 0 2px 0 rgba(0, 0, 0, 0.25);
-        font-family: Georgia, 'Times New Roman', serif;
-        letter-spacing: 0.02em;
-      }
-      input.textInput {
-        background: linear-gradient(180deg, #2e2217, #20160f);
-        color: var(--text);
-        border: 1px solid var(--panel-edge);
-        border-radius: 10px;
-        padding: 6px 10px;
-        font-family: Georgia, 'Times New Roman', serif;
-        letter-spacing: 0.02em;
-        flex: 1;
-        min-width: 180px;
-      }
-      input.textInput.invalid {
-        border-color: #7a3c2a;
-        box-shadow: 0 0 0 2px rgba(122, 60, 42, 0.2);
-      }
-      .inputErrorText {
-        color: #f2b1a2;
-        font-size: 14px;
-      }
-      select.btnTiny {
-        appearance: none;
-      }
-      .radioGroup {
-        display: flex;
-        gap: 8px;
-        flex-wrap: wrap;
-      }
-      .radioOption {
-        position: relative;
-        display: inline-flex;
-        align-items: center;
-      }
-      .radioOption input {
-        position: absolute;
-        opacity: 0;
-        pointer-events: none;
-      }
-      .radioOption span {
-        display: inline-block;
-        padding: 6px 10px;
-        border-radius: 10px;
-        border: 1px solid var(--panel-edge);
-        background: linear-gradient(180deg, #2e2217, #20160f);
-        color: var(--text);
-        font-family: Georgia, 'Times New Roman', serif;
-        letter-spacing: 0.02em;
-        box-shadow: 0 2px 0 rgba(0, 0, 0, 0.25);
-        cursor: pointer;
-        transition:
-          filter 0.15s ease,
-          border-color 0.15s ease,
-          box-shadow 0.15s ease;
-      }
-      .radioOption span:hover {
-        filter: brightness(1.1);
-        border-color: #5a4228;
-      }
-      .radioOption input:checked + span {
-        border-color: var(--accent);
-        box-shadow: 0 0 0 1px rgba(215, 180, 106, 0.45);
-        filter: brightness(1.08);
-      }
-      button:hover {
-        filter: brightness(1.1);
-        border-color: #5a4228;
-      }
-      button:disabled {
-        opacity: 0.5;
-        cursor: not-allowed;
-        filter: none;
-      }
-      .pill {
-        padding: 4px 10px;
-        border-radius: 999px;
-        border: 1px solid var(--panel-edge);
-        background: #1f1711;
-        font-size: 14px;
-        font-family: Georgia, 'Times New Roman', serif;
-      }
-      .kv {
-        display: flex;
-        justify-content: space-between;
-        gap: 10px;
-      }
-      .small {
-        font-size: 14px;
-        color: var(--muted);
-      }
-      .muted {
-        color: #b7a78c;
-      }
-      b {
-        color: var(--text);
-      }
-      .panelTitle {
-        display: flex;
-        justify-content: space-between;
-        align-items: baseline;
-        font-family: Georgia, 'Times New Roman', serif;
-        letter-spacing: 0.04em;
-      }
-      .panelMeta {
-        color: #dbcaa9;
-      }
-      .panelLine {
-        color: #d6c5a2;
-      }
-      .panelSectionTitle {
-        font-family: Georgia, 'Times New Roman', serif;
-        text-transform: uppercase;
-        font-size: 13px;
-        letter-spacing: 0.12em;
-        color: #e6d3ad;
-      }
-      .grid {
-        display: grid;
-        grid-template-columns: 1fr auto;
-        gap: 6px 8px;
-        align-items: center;
-      }
-      .btnTiny {
-        padding: 4px 8px;
-        border-radius: 8px;
-        font-size: 14px;
-      }
-      .sep {
-        border-top: 1px solid var(--panel-edge);
-        margin: 8px 0;
-      }
-      .tag {
-        font-size: 13px;
-        padding: 2px 6px;
-        border: 1px solid var(--panel-edge);
-        border-radius: 999px;
-        background: #1c140e;
-        color: #cbb894;
-      }
-      .tagChosen {
-        border-color: #6e4d2a;
-        background: rgba(110, 77, 42, 0.25);
-        color: #f2d39c;
-      }
-      .rarityBadge {
-        display: inline-block;
-        margin-right: 6px;
-        padding: 1px 6px;
-        border-radius: 999px;
-        font-size: 13px;
-        font-weight: 600;
-        letter-spacing: 0.04em;
-        text-transform: uppercase;
-        border: 1px solid rgba(255, 255, 255, 0.08);
-        background: rgba(22, 16, 12, 0.7);
-      }
-      .rarity-common {
-        color: #cbbda2;
-      }
-      .rarity-uncommon {
-        color: #6fd39b;
-        border-color: #2f5d46;
-      }
-      .rarity-rare {
-        color: #7fa8ff;
-        border-color: #3a4e8b;
-      }
-      .rarity-epic {
-        color: #f09ad3;
-        border-color: #8b3f64;
-      }
-      .rarity-legendary {
-        color: #f6c36b;
-        border-color: #8a5a22;
-      }
-      .shopMeta {
-        margin-top: 6px;
-      }
-      .shopDeal {
-        color: #f2c67a;
-        margin-top: 4px;
-      }
-      .priceTag {
-        display: inline-block;
-        margin-left: 6px;
-        padding: 1px 6px;
-        border-radius: 999px;
-        font-size: 11px;
-        border: 1px solid var(--panel-edge);
-        color: #f0dfc1;
-      }
-      .priceOk {
-        background: rgba(35, 79, 58, 0.35);
-        border-color: #2f5d46;
-        color: #c6f3d9;
-      }
-      .priceBad {
-        background: rgba(91, 48, 34, 0.4);
-        border-color: #6b3b2a;
-        color: #f2b1a2;
-      }
-      .dealTag {
-        display: inline-block;
-        margin-left: 6px;
-        padding: 1px 6px;
-        border-radius: 999px;
-        font-size: 10px;
-        letter-spacing: 0.08em;
-        text-transform: uppercase;
-        border: 1px solid #6b4a1e;
-        color: #f3d39a;
-        background: rgba(64, 44, 20, 0.6);
-      }
-      #stats {
-        margin-top: 10px;
-      }
-      .marginTop10 {
-        margin-top: 10px;
-      }
-      .marginTop12 {
-        margin-top: 12px;
-      }
-      .marginBottom10 {
-        margin-bottom: 10px;
-      }
-      .displayNone {
-        display: none;
-      }
-      .btnHidden {
-        display: none;
-      }
-      .classSelectOverlay {
-        position: fixed;
-        inset: 0;
-        background: rgba(15, 10, 7, 0.9);
-        display: flex;
-        align-items: center;
-        justify-content: center;
-        z-index: 999;
-      }
-      .classSelectOverlay.hidden {
-        display: none;
-      }
-      .saveModalOverlay {
-        position: fixed;
-        inset: 0;
-        background: rgba(15, 10, 7, 0.9);
-        display: flex;
-        align-items: center;
-        justify-content: center;
-        z-index: 1000;
-      }
-      .saveModalOverlay.hidden {
-        display: none;
-      }
-      .deathOverlay {
-        position: fixed;
-        inset: 0;
-        background: rgba(15, 10, 7, 0.92);
-        display: flex;
-        align-items: center;
-        justify-content: center;
-        z-index: 1100;
-        padding: 20px;
-      }
-      .deathOverlay.hidden {
-        display: none;
-      }
-      .deathCard {
-        background: linear-gradient(180deg, var(--panel), var(--panel-highlight));
-        border: 1px solid var(--panel-edge);
-        border-radius: 14px;
-        padding: 24px;
-        width: min(760px, 92%);
-        box-shadow: 0 18px 40px rgba(0, 0, 0, 0.45);
-        display: grid;
-        gap: 12px;
-      }
-      .deathBanner {
-        font-size: 26px;
-        text-transform: uppercase;
-        letter-spacing: 0.12em;
-        color: #f3d39a;
-      }
-      .deathStory {
-        background: #15100b;
-        border: 1px solid var(--panel-edge);
-        border-radius: 10px;
-        padding: 12px;
-        max-height: 320px;
-        overflow: auto;
-      }
-      .deathActions {
-        display: flex;
-        justify-content: flex-end;
-        gap: 8px;
-      }
-      .saveModalCard {
-        background: linear-gradient(180deg, var(--panel), var(--panel-highlight));
-        border: 1px solid var(--panel-edge);
-        border-radius: 12px;
-        padding: 20px;
-        width: min(720px, 92%);
-        box-shadow: 0 18px 40px rgba(0, 0, 0, 0.45);
-      }
-      .saveModalCard h3 {
-        margin: 0 0 6px;
-      }
-      .saveModalCard p {
-        margin: 0 0 12px;
-        color: var(--muted);
-        font-size: 13px;
-      }
-      .saveModalCard textarea {
-        width: 100%;
-        min-height: 200px;
-        resize: vertical;
-        background: #15100b;
-        color: var(--text);
-        border: 1px solid var(--panel-edge);
-        border-radius: 10px;
-        padding: 10px;
-        font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, 'Liberation Mono', monospace;
-        font-size: 12px;
-      }
-      .saveModalActions {
-        display: flex;
-        gap: 8px;
-        justify-content: flex-end;
-        margin-top: 12px;
-        flex-wrap: wrap;
-      }
-      .classSelectCard {
-        background: linear-gradient(180deg, var(--panel), var(--panel-highlight));
-        border: 1px solid var(--panel-edge);
-        border-radius: 12px;
-        padding: 24px;
-        width: min(540px, 90%);
-        box-shadow: 0 18px 40px rgba(0, 0, 0, 0.45);
-      }
-      .classSelectCard h2 {
-        margin: 0 0 8px;
-      }
-      .classSelectCard p {
-        margin: 0 0 16px;
-        color: var(--muted);
-      }
-      .classGrid {
-        display: grid;
-        gap: 12px;
-      }
-      .classChoice {
-        text-align: left;
-        background: #1f1610;
-        border: 1px solid var(--panel-edge);
-        border-radius: 10px;
-        padding: 14px;
-        color: var(--text);
-        cursor: pointer;
-        transition:
-          border-color 0.2s,
-          transform 0.2s;
-      }
-      .classChoice strong {
-        display: block;
-        font-size: 16px;
-        margin-bottom: 4px;
-        color: var(--text);
-      }
-      .classChoice span {
-        display: block;
-        font-size: 13px;
-        color: var(--muted);
-      }
-      .classChoice small {
-        display: block;
-        margin-top: 6px;
-        font-size: 12px;
-        color: #d6c5a2;
-      }
-      .classChoice:hover {
-        border-color: #6e4d2a;
-        transform: translateY(-1px);
-      }
-      a {
-        color: #f1d7a1;
-      }
-      .minimapControls {
-        justify-content: space-between;
-        align-items: center;
-        margin-bottom: 6px;
-      }
-      @media (max-width: 1500px) {
-        .wrap {
-          grid-template-columns: 1fr;
-        }
-        .hudBarRow {
-          grid-template-columns: 1fr;
-        }
-        #ascii,
-        #canvasWrap,
-        #side {
-          width: 100%;
-        }
-        #gameCanvas {
-          max-width: 100%;
-        }
-      }
-      .site-footer {
-        text-align: center;
-        padding: 2rem;
-        margin-top: 2rem;
-        color: rgba(248, 249, 250, 0.6);
-        font-size: 0.875rem;
-      }
-      .todoListStyle {
-        padding-left: 12px;
-      }
-      .featuresListStyle {
-        padding-left: 12px;
-      }
-    </style>
   </head>
   <body>
     <div class="wrap">
       <div>
         <div
           id="hudBar"
-          class="hudBar"></div>
+          class="frame panel-mid pad-sm"></div>
         <div class="row marginBottom10">
           <span
             class="pill"
@@ -744,11 +102,13 @@
           >
         </div>
 
-        <div id="ascii"></div>
+        <div
+          id="ascii"
+          class="frame panel-dark pad-md"></div>
 
         <div
           id="canvasWrap"
-          class="marginTop12 displayNone">
+          class="frame panel-dark pad-md marginTop12 displayNone">
           <canvas
             id="gameCanvas"
             width="1024"
@@ -756,7 +116,9 @@
         </div>
       </div>
 
-      <div id="side">
+      <div
+        id="side"
+        class="frame panel-base pad-md">
         <div class="row">
           <details class="menu">
             <summary
@@ -807,7 +169,9 @@
           levels (<b>&gt;</b>/<b>&lt;</b>). Monsters use A* pathing when they can see you.
         </div>
 
-        <div id="minimapWrap">
+        <div
+          id="minimapWrap"
+          class="frame panel-dark pad-xs marginTop10">
           <div
             id="minimapTitle"
             class="small">
@@ -829,10 +193,18 @@
             height="160"></canvas>
         </div>
 
-        <div id="stats"></div>
-        <div id="panel"></div>
-        <div id="log"></div>
-        <div id="todo">
+        <div
+          id="stats"
+          class="marginTop10"></div>
+        <div
+          id="panel"
+          class="sectionDivider"></div>
+        <div
+          id="log"
+          class="sectionDivider"></div>
+        <div
+          id="todo"
+          class="sectionDivider">
           <div
             id="todoTitle"
             class="panelSectionTitle">
@@ -840,7 +212,7 @@
           </div>
           <div
             id="todoList"
-            class="small todoListStyle"></div>
+            class="small"></div>
         </div>
 
         <div id="features">
@@ -851,7 +223,18 @@
           </div>
           <div
             id="featuresList"
-            class="small featuresListStyle"></div>
+            class="small padLeft12">
+            <div>✓ Procedural overworld generation</div>
+            <div>✓ Dungeon crawling (rooms, caves, mazes)</div>
+            <div>✓ Turn-based combat with A* pathfinding</div>
+            <div>✓ Towns with NPCs and shops</div>
+            <div>✓ Dynamic loot and equipment</div>
+            <div>✓ 3 playable classes (Warrior, Rogue, Mage)</div>
+            <div>✓ Level-up and stat progression</div>
+            <div>✓ Field of view & line of sight</div>
+            <div>✓ Save/load with shareable codes</div>
+            <div>✓ ASCII & Canvas renderers</div>
+          </div>
         </div>
       </div>
     </div>
@@ -988,6 +371,14 @@
             Close
           </button>
         </div>
+      </div>
+    </div>
+
+    <div
+      id="shopModal"
+      class="shopModalOverlay hidden">
+      <div class="shopModalCard">
+        <div id="shopModalContent"></div>
       </div>
     </div>
 

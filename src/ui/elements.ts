@@ -57,3 +57,5 @@ export const deathOverlay: HTMLElement = document.getElementById('deathOverlay')
 export const deathBannerEl: HTMLElement = document.getElementById('deathBanner')!;
 export const deathSubtitleEl: HTMLElement = document.getElementById('deathSubtitle')!;
 export const deathStoryEl: HTMLElement = document.getElementById('deathStory')!;
+export const shopModal: HTMLElement = document.getElementById('shopModal')!;
+export const shopModalContent: HTMLElement = document.getElementById('shopModalContent')!;
