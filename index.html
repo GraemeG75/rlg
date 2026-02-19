@@ -1,73 +1,41 @@
 <!doctype html>
 <html lang="en">
-  <head>
-    <!-- Google tag (gtag.js) -->
-    <script
-      async
-      src="https://www.googletagmanager.com/gtag/js?id=G-54MF63QMDH"></script>
-    <script>
-      window.dataLayer = window.dataLayer || [];
-      function gtag() {
-        dataLayer.push(arguments);
-      }
-      gtag('js', new Date());
 
-      gtag('config', 'G-54MF63QMDH');
-    </script>
-    <meta charset="UTF-8" />
-    <meta
-      name="viewport"
-      content="width=device-width,initial-scale=1" />
-    <title>Ancient Realms of Mystery</title>
-    <meta
-      name="description"
-      content="Ancient Realms of Mystery is a browser roguelike with overworld exploration, towns, dungeons, loot, and turn-based combat." />
-    <meta
-      name="keywords"
-      content="roguelike, dungeon crawler, fantasy, pixel art, browser game, turn-based" />
-    <meta
-      name="robots"
-      content="index,follow" />
-    <meta
-      name="theme-color"
-      content="#1b140e" />
-    <link
-      rel="stylesheet"
-      href="/styles.css" />
-    <link
-      rel="canonical"
-      href="https://ancientrealmsofmystery.com/" />
-    <meta
-      property="og:title"
-      content="Ancient Realms of Mystery" />
-    <meta
-      property="og:description"
-      content="A browser roguelike with overworld exploration, towns, dungeons, loot, and turn-based combat." />
-    <meta
-      property="og:url"
-      content="https://ancientrealmsofmystery.com/" />
-    <meta
-      property="og:type"
-      content="website" />
-    <meta
-      property="og:site_name"
-      content="Ancient Realms of Mystery" />
-    <meta
-      property="og:image"
-      content="https://ancientrealmsofmystery.com/og/og-image.png" />
-    <meta
-      name="twitter:card"
-      content="summary_large_image" />
-    <meta
-      name="twitter:title"
-      content="Ancient Realms of Mystery" />
-    <meta
-      name="twitter:description"
-      content="A browser roguelike with overworld exploration, towns, dungeons, loot, and turn-based combat." />
-    <meta
-      name="twitter:image"
-      content="https://ancientrealmsofmystery.com/og/og-image.png" />
-    <script type="application/ld+json">
+<head>
+  <!-- Google tag (gtag.js) -->
+  <script async src="https://www.googletagmanager.com/gtag/js?id=G-54MF63QMDH"></script>
+  <script>
+    window.dataLayer = window.dataLayer || [];
+    function gtag() {
+      dataLayer.push(arguments);
+    }
+    gtag('js', new Date());
+
+    gtag('config', 'G-54MF63QMDH');
+  </script>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>Ancient Realms of Mystery</title>
+  <meta name="description"
+    content="Ancient Realms of Mystery is a browser roguelike with overworld exploration, towns, dungeons, loot, and turn-based combat." />
+  <meta name="keywords" content="roguelike, dungeon crawler, fantasy, pixel art, browser game, turn-based" />
+  <meta name="robots" content="index,follow" />
+  <meta name="theme-color" content="#1b140e" />
+  <link rel="stylesheet" href="/styles.css" />
+  <link rel="canonical" href="https://ancientrealmsofmystery.com/" />
+  <meta property="og:title" content="Ancient Realms of Mystery" />
+  <meta property="og:description"
+    content="A browser roguelike with overworld exploration, towns, dungeons, loot, and turn-based combat." />
+  <meta property="og:url" content="https://ancientrealmsofmystery.com/" />
+  <meta property="og:type" content="website" />
+  <meta property="og:site_name" content="Ancient Realms of Mystery" />
+  <meta property="og:image" content="https://ancientrealmsofmystery.com/og/og-image.png" />
+  <meta name="twitter:card" content="summary_large_image" />
+  <meta name="twitter:title" content="Ancient Realms of Mystery" />
+  <meta name="twitter:description"
+    content="A browser roguelike with overworld exploration, towns, dungeons, loot, and turn-based combat." />
+  <meta name="twitter:image" content="https://ancientrealmsofmystery.com/og/og-image.png" />
+  <script type="application/ld+json">
       {
         "@context": "https://schema.org",
         "@type": "VideoGame",
@@ -80,361 +48,233 @@
         "operatingSystem": "Any"
       }
     </script>
-  </head>
-  <body>
-    <div class="wrap">
-      <div>
-        <div
-          id="hudBar"
-          class="frame panel-mid pad-sm"></div>
-        <div class="row marginBottom10">
-          <span
-            class="pill"
-            id="modePill"></span>
-          <span
-            class="pill"
-            id="renderPill"></span>
-          <span
-            class="hint"
-            id="controlsHint"
-            >Move WASD/Arrows • Shift+Move run • M map • Enter use • I inventory • B shop • Q quests • G pick up • R renderer • F FOV • P save • O
-            load</span
-          >
-        </div>
+</head>
 
-        <div
-          id="ascii"
-          class="frame panel-dark pad-md"></div>
-
-        <div
-          id="canvasWrap"
-          class="frame panel-dark pad-md marginTop12 displayNone">
-          <canvas
-            id="gameCanvas"
-            width="1024"
-            height="576"></canvas>
-        </div>
+<body>
+  <div class="wrap">
+    <div>
+      <div id="hudBar" class="frame panel-mid pad-sm"></div>
+      <div class="row marginBottom10">
+        <span class="pill" id="modePill"></span>
+        <span class="pill" id="renderPill"></span>
+        <span class="hint" id="controlsHint">Move WASD/Arrows • Shift+Move run • M map • Enter use • I inventory • B
+          shop • Q quests • G pick up • R renderer • F FOV • P save • O
+          load</span>
       </div>
 
-      <div
-        id="side"
-        class="frame panel-base pad-md">
-        <div class="row">
-          <details class="menu">
-            <summary
-              class="btnTiny"
-              id="menuActionsLabel">
-              Actions
-            </summary>
-            <div class="menuList">
-              <div class="menuLabel">Game</div>
-              <button id="btnNewSeed">New Seed</button>
-              <button id="btnSave">Save</button>
-              <button id="btnLoad">Load</button>
-              <div class="menuLabel">Share</div>
-              <button id="btnExportSave">Export Save</button>
-              <button id="btnImportSave">Import Save</button>
-            </div>
-          </details>
+      <div id="ascii" class="frame panel-dark pad-md"></div>
 
-          <details class="menu">
-            <summary
-              class="btnTiny"
-              id="menuPanelsLabel">
-              Panels
-            </summary>
-            <div class="menuList">
-              <button id="btnInv">Inventory</button>
-              <button id="btnShop">Shop</button>
-              <button id="btnStory">Story</button>
-              <button id="btnMap">Map</button>
-            </div>
-          </details>
-
-          <details class="menu">
-            <summary
-              class="btnTiny"
-              id="menuRenderLabel">
-              Render
-            </summary>
-            <div class="menuList">
-              <button id="btnCanvas">Canvas</button>
-            </div>
-          </details>
-        </div>
-        <div
-          class="hint marginTop10"
-          id="overworldHint">
-          Overworld: <b>D</b> dungeons, <b>T</b> towns, <b>=</b> roads. Press <b>M</b> for map + auto-walk (Enter to set destination). Dungeons have
-          levels (<b>&gt;</b>/<b>&lt;</b>). Monsters use A* pathing when they can see you.
-        </div>
-
-        <div
-          id="minimapWrap"
-          class="frame panel-dark pad-xs marginTop10">
-          <div
-            id="minimapTitle"
-            class="small">
-            Map
-          </div>
-          <div class="row small minimapControls">
-            <span
-              id="pathModeLabel"
-              class="muted"></span>
-            <button
-              id="btnPathMode"
-              class="btnTiny"
-              type="button"
-              title="Toggle path mode"></button>
-          </div>
-          <canvas
-            id="minimap"
-            width="240"
-            height="160"></canvas>
-        </div>
-
-        <div
-          id="stats"
-          class="marginTop10"></div>
-        <div
-          id="panel"
-          class="sectionDivider"></div>
-        <div
-          id="log"
-          class="sectionDivider"></div>
-        <div
-          id="todo"
-          class="sectionDivider">
-          <div
-            id="todoTitle"
-            class="panelSectionTitle">
-            Upcoming Features
-          </div>
-          <div
-            id="todoList"
-            class="small"></div>
-        </div>
-
-        <div id="features">
-          <div
-            id="featuresTitle"
-            class="panelSectionTitle">
-            Features
-          </div>
-          <div
-            id="featuresList"
-            class="small padLeft12">
-            <div>✓ Procedural overworld generation</div>
-            <div>✓ Dungeon crawling (rooms, caves, mazes)</div>
-            <div>✓ Turn-based combat with A* pathfinding</div>
-            <div>✓ Towns with NPCs and shops</div>
-            <div>✓ Dynamic loot and equipment</div>
-            <div>✓ 3 playable classes (Warrior, Rogue, Mage)</div>
-            <div>✓ Level-up and stat progression</div>
-            <div>✓ Field of view & line of sight</div>
-            <div>✓ Save/load with shareable codes</div>
-            <div>✓ ASCII & Canvas renderers</div>
-          </div>
-        </div>
+      <div id="canvasWrap" class="frame panel-dark pad-md marginTop12 displayNone">
+        <canvas id="gameCanvas" width="1024" height="576"></canvas>
       </div>
     </div>
 
-    <div
-      id="classSelect"
-      class="classSelectOverlay">
-      <div class="classSelectCard">
-        <h2 id="classSelectTitle">Select Your Adventurer</h2>
-        <p id="classSelectSubtitle">Each hero fights differently. Pick the style that suits you.</p>
-        <div class="row marginTop12">
-          <label
-            class="small"
-            id="nameLabel"
-            for="nameInput"
-            >Name</label
-          >
-          <input
-            id="nameInput"
-            class="textInput"
-            type="text"
-            maxlength="24"
-            autocomplete="off"
-            spellcheck="false" />
-          <button
-            id="btnNameRandom"
-            type="button"
-            class="btnTiny">
-            Random
-          </button>
-        </div>
-        <div
-          id="nameError"
-          class="inputErrorText marginTop10"></div>
-        <div class="row marginTop12">
-          <label
-            class="small"
-            id="genderLabel"
-            for="genderFemale"
-            >Gender</label
-          >
-          <div
-            id="genderOptions"
-            class="radioGroup"
-            role="radiogroup"
-            aria-labelledby="genderLabel">
-            <label class="radioOption">
-              <input
-                type="radio"
-                id="genderFemale"
-                name="genderOption"
-                value="female"
-                checked />
-              <span data-gender-option="female">Female</span>
-            </label>
-            <label class="radioOption">
-              <input
-                type="radio"
-                id="genderMale"
-                name="genderOption"
-                value="male" />
-              <span data-gender-option="male">Male</span>
-            </label>
-            <label class="radioOption">
-              <input
-                type="radio"
-                id="genderNonbinary"
-                name="genderOption"
-                value="nonbinary" />
-              <span data-gender-option="nonbinary">Non-binary</span>
-            </label>
+    <div id="side" class="frame panel-base pad-md">
+      <div class="row">
+        <details class="menu">
+          <summary class="btnTiny" id="menuActionsLabel">
+            Actions
+          </summary>
+          <div class="menuList">
+            <div class="menuLabel">Game</div>
+            <button id="btnNewSeed">New Seed</button>
+            <button id="btnSave">Save</button>
+            <button id="btnLoad">Load</button>
+            <div class="menuLabel">Share</div>
+            <button id="btnExportSave">Export Save</button>
+            <button id="btnImportSave">Import Save</button>
           </div>
+        </details>
+
+        <details class="menu">
+          <summary class="btnTiny" id="menuPanelsLabel">
+            Panels
+          </summary>
+          <div class="menuList">
+            <button id="btnInv">Inventory</button>
+            <button id="btnShop">Shop</button>
+            <button id="btnStory">Story</button>
+            <button id="btnMap">Map</button>
+          </div>
+        </details>
+
+        <details class="menu">
+          <summary class="btnTiny" id="menuRenderLabel">
+            Render
+          </summary>
+          <div class="menuList">
+            <button id="btnCanvas">Canvas</button>
+          </div>
+        </details>
+      </div>
+      <div class="hint marginTop10" id="overworldHint">
+        Overworld: <b>D</b> dungeons, <b>T</b> towns, <b>=</b> roads. Press <b>M</b> for map + auto-walk (Enter to set
+        destination). Dungeons have
+        levels (<b>&gt;</b>/<b>&lt;</b>). Monsters use A* pathing when they can see you.
+      </div>
+
+      <div id="minimapWrap" class="frame panel-dark pad-xs marginTop10">
+        <div id="minimapTitle" class="small">
+          Map
         </div>
-        <div class="sep"></div>
-        <div class="classGrid">
-          <button
-            type="button"
-            class="classChoice"
-            data-class="warrior">
-            <strong>Warrior</strong>
-            <span>Heavy melee fighter with unmatched strength.</span>
-            <small>Strength 6 • Agility 3 • Intellect 2</small>
-          </button>
-          <button
-            type="button"
-            class="classChoice"
-            data-class="rogue">
-            <strong>Rogue</strong>
-            <span>Fast strikes, high agility, and lethal precision.</span>
-            <small>Strength 3 • Agility 6 • Intellect 3</small>
-          </button>
-          <button
-            type="button"
-            class="classChoice"
-            data-class="mage">
-            <strong>Mage</strong>
-            <span>Harness arcane power to burn through defenses.</span>
-            <small>Strength 2 • Agility 3 • Intellect 7</small>
-          </button>
+        <div class="row small minimapControls">
+          <span id="pathModeLabel" class="muted"></span>
+          <button id="btnPathMode" class="btnTiny" type="button" title="Toggle path mode"></button>
         </div>
-        <button
-          id="btnLoadFromModal"
-          type="button"
-          class="btnTiny marginTop12">
-          Load Saved Game
+        <canvas id="minimap" width="240" height="160"></canvas>
+      </div>
+
+      <div id="stats" class="marginTop10"></div>
+      <div id="panel" class="sectionDivider"></div>
+      <div id="log" class="sectionDivider"></div>
+      <div id="todo" class="sectionDivider">
+        <div id="todoTitle" class="panelSectionTitle">
+          Upcoming Features
+        </div>
+        <div id="todoList" class="small"></div>
+      </div>
+
+      <div id="features">
+        <div id="featuresTitle" class="panelSectionTitle">
+          Features
+        </div>
+        <div id="featuresList" class="small padLeft12">
+          <div>✓ Procedural overworld generation</div>
+          <div>✓ Dungeon crawling (rooms, caves, mazes)</div>
+          <div>✓ Turn-based combat with A* pathfinding</div>
+          <div>✓ Towns with NPCs and shops</div>
+          <div>✓ Dynamic loot and equipment</div>
+          <div>✓ 3 playable classes (Warrior, Rogue, Mage)</div>
+          <div>✓ Level-up and stat progression</div>
+          <div>✓ Field of view & line of sight</div>
+          <div>✓ Save/load with shareable codes</div>
+          <div>✓ ASCII & Canvas renderers</div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div id="classSelect" class="classSelectOverlay">
+    <div class="classSelectCard">
+      <h2 id="classSelectTitle">Select Your Adventurer</h2>
+      <p id="classSelectSubtitle">Each hero fights differently. Pick the style that suits you.</p>
+      <div class="row marginTop12">
+        <label class="small" id="nameLabel" for="nameInput">Name</label>
+        <input id="nameInput" class="textInput" type="text" maxlength="24" autocomplete="off" spellcheck="false" />
+        <button id="btnNameRandom" type="button" class="btnTiny">
+          Random
+        </button>
+      </div>
+      <div id="nameError" class="inputErrorText marginTop10"></div>
+      <div class="row marginTop12">
+        <label class="small" id="genderLabel" for="genderFemale">Gender</label>
+        <div id="genderOptions" class="radioGroup" role="radiogroup" aria-labelledby="genderLabel">
+          <label class="radioOption">
+            <input type="radio" id="genderFemale" name="genderOption" value="female" checked />
+            <span data-gender-option="female">Female</span>
+          </label>
+          <label class="radioOption">
+            <input type="radio" id="genderMale" name="genderOption" value="male" />
+            <span data-gender-option="male">Male</span>
+          </label>
+          <label class="radioOption">
+            <input type="radio" id="genderNonbinary" name="genderOption" value="nonbinary" />
+            <span data-gender-option="nonbinary">Non-binary</span>
+          </label>
+        </div>
+      </div>
+      <div class="sep"></div>
+      <div class="classGrid">
+        <button type="button" class="classChoice" data-class="warrior">
+          <strong>Warrior</strong>
+          <span>Heavy melee fighter with unmatched strength.</span>
+          <small>Strength 6 • Agility 3 • Intellect 2</small>
+        </button>
+        <button type="button" class="classChoice" data-class="rogue">
+          <strong>Rogue</strong>
+          <span>Fast strikes, high agility, and lethal precision.</span>
+          <small>Strength 3 • Agility 6 • Intellect 3</small>
+        </button>
+        <button type="button" class="classChoice" data-class="mage">
+          <strong>Mage</strong>
+          <span>Harness arcane power to burn through defenses.</span>
+          <small>Strength 2 • Agility 3 • Intellect 7</small>
+        </button>
+      </div>
+      <button id="btnLoadFromModal" type="button" class="btnTiny marginTop12">
+        Load Saved Game
+      </button>
+    </div>
+  </div>
+
+  <div id="saveModal" class="saveModalOverlay hidden">
+    <div class="saveModalCard">
+      <h3 id="saveModalTitle">Share Save</h3>
+      <p id="saveModalHint">Copy this save code to share, or paste a save code to load.</p>
+      <textarea id="saveJsonText" spellcheck="false" placeholder="Paste save code here"></textarea>
+      <div class="saveModalActions">
+        <button id="btnSaveModalCopy" type="button">
+          Copy
+        </button>
+        <button id="btnSaveModalLoad" type="button">
+          Load Save
+        </button>
+        <button id="btnSaveModalClose" type="button">
+          Close
         </button>
       </div>
     </div>
+  </div>
 
-    <div
-      id="saveModal"
-      class="saveModalOverlay hidden">
-      <div class="saveModalCard">
-        <h3 id="saveModalTitle">Share Save</h3>
-        <p id="saveModalHint">Copy this save code to share, or paste a save code to load.</p>
-        <textarea
-          id="saveJsonText"
-          spellcheck="false"
-          placeholder="Paste save code here"></textarea>
-        <div class="saveModalActions">
-          <button
-            id="btnSaveModalCopy"
-            type="button">
-            Copy
-          </button>
-          <button
-            id="btnSaveModalLoad"
-            type="button">
-            Load Save
-          </button>
-          <button
-            id="btnSaveModalClose"
-            type="button">
-            Close
-          </button>
-        </div>
+  <div id="shopModal" class="shopModalOverlay hidden">
+    <div class="shopModalCard">
+      <div id="shopModalContent"></div>
+    </div>
+  </div>
+
+  <div id="deathOverlay" class="deathOverlay hidden">
+    <div class="deathCard">
+      <div id="deathBanner" class="deathBanner">
+        YOU HAVE FALLEN
+      </div>
+      <div id="deathSubtitle" class="small muted"></div>
+      <div id="deathStory" class="deathStory"></div>
+      <div class="deathActions">
+        <button id="btnNewGame" type="button">
+          Try Again
+        </button>
       </div>
     </div>
+  </div>
 
-    <div
-      id="shopModal"
-      class="shopModalOverlay hidden">
-      <div class="shopModalCard">
-        <div id="shopModalContent"></div>
+  <footer class="site-footer">
+    <div class="pride-flag-banner"></div>
+    <div class="flex justify-center gap-8 py-12 items-center">
+      <div class="gap-3">
+        <img src="/img/generated-pixel-logomark.svg" alt="Generated Pixel logo" class="size-10" />
+        <span class="block text-lg font-semibold text-white">&copy; 2026 Generated Pixel</span>
       </div>
-    </div>
-
-    <div
-      id="deathOverlay"
-      class="deathOverlay hidden">
-      <div class="deathCard">
-        <div
-          id="deathBanner"
-          class="deathBanner">
-          YOU HAVE FALLEN
-        </div>
-        <div
-          id="deathSubtitle"
-          class="small muted"></div>
-        <div
-          id="deathStory"
-          class="deathStory"></div>
-        <div class="deathActions">
-          <button
-            id="btnNewGame"
-            type="button">
-            Try Again
-          </button>
-        </div>
-      </div>
-    </div>
-
-    <footer class="site-footer">
       <div class="hint">
-        <span id="supportLead">Enjoying the adventure?</span>
-        <a
-          id="supportLink"
-          href="https://buymeacoffee.com/figuremodel"
-          target="_blank"
-          rel="noopener noreferrer"
-          >Buy me a coffee</a
-        >
-        <span id="supportTail">to keep it going.</span>
+        <span id="supportLead" class="block">Enjoying the adventure?</span>
+        <a id="supportLink" href="https://buymeacoffee.com/figuremodel" target="_blank" rel="noopener noreferrer">Buy me
+          a
+          coffee</a>
+        <span id="supportTail" class="block">to keep it going.</span>
       </div>
-      <p>
-        Want to help? Comments / Questions / Feedback? Reach out at
-        <a href="mailto:arom@generatedpixel.dev">arom@generatedpixel.dev</a>
-      </p>
-      <p>
-        Site created by
-        <a
-          href="https://generatedpixel.dev/"
-          target="_blank"
-          rel="noopener noreferrer"
-          >GeneratedPixel</a
-        >
-      </p>
-    </footer>
-    <script
-      type="module"
-      src="/src/main.ts"></script>
-  </body>
+      <div class="">
+        <img src="/img/kitten.png" alt="Kitten mascot" class="kitten-image" />
+      </div>
+      <div class="">
+        <span class="block">
+          Want to help? Comments / Questions / Feedback? Reach out at&nbsp;
+        </span>
+        <span class="block">
+          <a href="mailto:arom@generatedpixel.dev">arom@generatedpixel.dev</a>
+        </span>
+      </div>
+    </div>
+  </footer>
+  <script type="module" src="/src/main.ts"></script>
+</body>
+
 </html>
