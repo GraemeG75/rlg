@@ -1,4 +1,3 @@
-export const asciiEl: HTMLElement = document.getElementById('ascii')!;
 export const canvasWrap: HTMLElement = document.getElementById('canvasWrap')!;
 export const hudBarEl: HTMLElement = document.getElementById('hudBar')!;
 export const modePill: HTMLElement = document.getElementById('modePill')!;
@@ -21,6 +20,7 @@ export const menuRenderLabel: HTMLElement = document.getElementById('menuRenderL
 export const nameLabel: HTMLElement = document.getElementById('nameLabel')!;
 export const genderLabel: HTMLElement = document.getElementById('genderLabel')!;
 export const btnCanvas: HTMLButtonElement = document.getElementById('btnCanvas') as HTMLButtonElement;
+export const btnIsometric: HTMLButtonElement = document.getElementById('btnIsometric') as HTMLButtonElement;
 export const btnNewSeed: HTMLButtonElement = document.getElementById('btnNewSeed') as HTMLButtonElement;
 export const btnSave: HTMLButtonElement = document.getElementById('btnSave') as HTMLButtonElement;
 export const btnLoad: HTMLButtonElement = document.getElementById('btnLoad') as HTMLButtonElement;

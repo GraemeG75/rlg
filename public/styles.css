@@ -59,12 +59,6 @@ body {
   gap: 14px;
   align-items: start;
 }
-#ascii {
-  white-space: pre;
-  line-height: 1.05em;
-  font-size: 18px;
-  min-height: 560px;
-}
 .hudBarRow {
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));
@@ -650,7 +644,6 @@ a {
   .hudBarRow {
     grid-template-columns: 1fr;
   }
-  #ascii,
   #canvasWrap,
   #side {
     width: 100%;

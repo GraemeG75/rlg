@@ -861,7 +861,6 @@ function createClassUpgradeItem(classType: CharacterClass, slot: ItemKind.Weapon
   return { id, kind: ItemKind.Armor, name, defenseBonus, value, rarity: rarity.key, dodgeChance, thorns };
 }
 
-const asciiEl: HTMLElement = document.getElementById('ascii')!;
 const canvasWrap: HTMLElement = document.getElementById('canvasWrap')!;
 const hudBarEl: HTMLElement = document.getElementById('hudBar')!;
 const modePill: HTMLElement = document.getElementById('modePill')!;
@@ -884,6 +883,7 @@ const menuRenderLabel: HTMLElement = document.getElementById('menuRenderLabel')!
 const nameLabel: HTMLElement = document.getElementById('nameLabel')!;
 const genderLabel: HTMLElement = document.getElementById('genderLabel')!;
 const btnCanvas: HTMLButtonElement = document.getElementById('btnCanvas') as HTMLButtonElement;
+const btnIsometric: HTMLButtonElement = document.getElementById('btnIsometric') as HTMLButtonElement;
 const btnNewSeed: HTMLButtonElement = document.getElementById('btnNewSeed') as HTMLButtonElement;
 const btnSave: HTMLButtonElement = document.getElementById('btnSave') as HTMLButtonElement;
 const btnLoad: HTMLButtonElement = document.getElementById('btnLoad') as HTMLButtonElement;
@@ -932,7 +932,6 @@ let pendingSeed: number = Date.now() & 0xffffffff;
 let pendingClass: CharacterClass = CharacterClass.Warrior;
 let pendingGender: Gender = Gender.Female;
 let pendingName: string = '';
-canvasWrap.classList.add('displayNone');
 
 /**
  * Computes the Pixi view size in tiles.
@@ -977,6 +976,7 @@ function applyStaticI18n(): void {
   pathModeLabel.textContent = t('ui.pathMode.label');
 
   btnCanvas.textContent = t('ui.buttons.canvas');
+  btnIsometric.textContent = t('ui.buttons.isometric');
   btnNewSeed.textContent = t('ui.buttons.newSeed');
   btnSave.textContent = t('ui.buttons.save');
   btnLoad.textContent = t('ui.buttons.load');
@@ -3618,8 +3618,10 @@ function updatePathPreferenceUi(): void {
  * Syncs renderer UI visibility with the chosen renderer.
  */
 function syncRendererUi(): void {
-  asciiEl.style.display = 'none';
   canvasWrap.style.display = 'block';
+  const canvasSelected: boolean = state.rendererMode === PixiRenderMode.Canvas;
+  btnCanvas.setAttribute('aria-pressed', canvasSelected ? 'true' : 'false');
+  btnIsometric.setAttribute('aria-pressed', canvasSelected ? 'false' : 'true');
 }
 
 let fxRenderUntil: number = 0;
@@ -3683,7 +3685,10 @@ function render(): void {
               theme: dungeon?.theme ? t(`theme.${dungeon.theme}`) : '?'
             });
 
-  renderPill.textContent = t('ui.render.pill', { fov: state.useFov ? t('ui.fov.on') : t('ui.fov.off') });
+  renderPill.textContent = t('ui.render.pill', {
+    mode: state.rendererMode === PixiRenderMode.Isometric ? t('ui.render.mode.isometric') : t('ui.render.mode.canvas'),
+    fov: state.useFov ? t('ui.fov.on') : t('ui.fov.off')
+  });
 
   if (renderMode === Mode.Dungeon && dungeon && state.useFov) {
     const fov: FieldOfView = new FieldOfView(dungeon);
@@ -3810,7 +3815,6 @@ function render(): void {
     deathOverlay.classList.add('hidden');
   }
 
-  asciiEl.style.display = 'none';
   canvasWrap.style.display = 'block';
   const view = getPixiViewSize();
   canvasRenderer.render(
@@ -4350,6 +4354,14 @@ window.addEventListener('keydown', (e: KeyboardEvent) => {
 
 btnCanvas.addEventListener('click', () => {
   state.rendererMode = PixiRenderMode.Canvas;
+  state.log.push(t('log.renderer.topdown'));
+  syncRendererUi();
+  render();
+});
+
+btnIsometric.addEventListener('click', () => {
+  state.rendererMode = PixiRenderMode.Isometric;
+  state.log.push(t('log.renderer.iso'));
   syncRendererUi();
   render();
 });
