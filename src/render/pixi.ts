@@ -193,7 +193,7 @@ export class PixiRenderer {
 
         if (ctx.mode === Mode.Overworld) {
           const tile: OverworldTile = ctx.overworld.getTile(wx, wy);
-          sprite.texture = this.getTexture(this.overworldKey(tile));
+          sprite.texture = this.getTopDownTileTexture(Mode.Overworld, tile);
           sprite.alpha = 1;
           sprite.visible = true;
         } else if (ctx.mode === Mode.Dungeon) {
@@ -220,10 +220,8 @@ export class PixiRenderer {
             }
           }
 
-          const dist: number = Math.max(Math.abs(x), Math.abs(y));
-          const lightFactor: number = this.lightFalloff(dist, lightRadius);
-          sprite.texture = this.getTexture(this.dungeonKey(dungeon.theme, dungeon.layout, tile));
-          sprite.alpha = tileAlpha * lightFactor;
+          sprite.texture = this.getTopDownTileTexture(Mode.Dungeon, tile, dungeon.theme, dungeon.layout);
+          sprite.alpha = tileAlpha;
           sprite.visible = true;
 
           if (tile === DungeonTile.StairsUp || tile === DungeonTile.StairsDown) {
@@ -233,7 +231,7 @@ export class PixiRenderer {
               wy,
               glyph: tile === DungeonTile.StairsUp ? '<' : '>',
               color: palette.glyph,
-              alpha: tileAlpha * lightFactor
+              alpha: tileAlpha
             });
           }
         } else {
@@ -247,7 +245,7 @@ export class PixiRenderer {
             continue;
           }
           const tile: TownTile = getTownTile(town, wx, wy);
-          sprite.texture = this.getTexture(this.townKey(tile));
+          sprite.texture = this.getTopDownTileTexture(Mode.Town, tile);
           sprite.alpha = 1;
           sprite.visible = true;
         }
@@ -263,12 +261,11 @@ export class PixiRenderer {
     this.drawPlayer(originX, originY, halfW, halfH, lightRadius, now);
 
     if (this.fogSprite) {
-      this.fogSprite.visible = ctx.mode === Mode.Dungeon;
+      this.fogSprite.visible = false;
     }
-    this.updateFogDrift();
 
     if (this.vignetteSprite) {
-      this.vignetteSprite.alpha = ctx.mode === Mode.Dungeon ? 0.75 : 0.45;
+      this.vignetteSprite.alpha = 0;
     }
 
     for (const s of pendingStairs) {
@@ -1486,15 +1483,12 @@ export class PixiRenderer {
       }
       const spriteKey: SpriteKey = it.kind === ItemKind.Potion ? 'it_potion' : it.kind === ItemKind.Weapon ? 'it_weapon' : 'it_armor';
       const sprite = new Sprite(this.getTexture(spriteKey));
-      const bob: number = Math.sin(now / 320 + this.phaseFromId(it.id)) * 0.6;
+      const bob: number = 0;
       sprite.x = screen.x;
       sprite.y = screen.y + bob;
       sprite.width = this.tileSize;
       sprite.height = this.tileSize;
-      if (ctx.mode === Mode.Dungeon) {
-        const dist: number = Math.max(Math.abs(it.pos.x - originX), Math.abs(it.pos.y - originY));
-        sprite.alpha = this.lightFalloff(dist, lightRadius);
-      }
+      sprite.alpha = 1;
       this.entityLayer.addChild(sprite);
     }
   }
@@ -1557,15 +1551,12 @@ export class PixiRenderer {
       }
       const spriteKey = this.monsterKey(entity.glyph);
       const sprite = new Sprite(this.getTexture(spriteKey));
-      const sway: number = Math.sin(now / 520 + this.phaseFromId(entity.id)) * 0.4;
+      const sway: number = 0;
       sprite.x = screen.x;
       sprite.y = screen.y + sway;
       sprite.width = this.tileSize;
       sprite.height = this.tileSize;
-      if (ctx.mode === Mode.Dungeon) {
-        const dist: number = Math.max(Math.abs(entity.pos.x - originX), Math.abs(entity.pos.y - originY));
-        sprite.alpha = this.lightFalloff(dist, lightRadius);
-      }
+      sprite.alpha = 1;
       this.entityLayer.addChild(sprite);
     }
   }
@@ -1585,13 +1576,12 @@ export class PixiRenderer {
       return;
     }
     const sprite = new Sprite(this.getTexture('ent_player'));
-    const pulse: number = Math.sin(now / 700) * 0.4;
+    const pulse: number = 0;
     sprite.x = screen.x;
     sprite.y = screen.y + pulse;
     sprite.width = this.tileSize;
     sprite.height = this.tileSize;
-    const dist: number = 0;
-    sprite.alpha = this.lightFalloff(dist, lightRadius);
+    sprite.alpha = 1;
     this.overlayLayer.addChild(sprite);
   }
 
@@ -1887,6 +1877,122 @@ export class PixiRenderer {
     }
     this.textures.set(key, texture);
     return texture;
+  }
+
+  private getTopDownTileTexture(mode: IsoMode, tile: OverworldTile | DungeonTile | TownTile, theme?: DungeonTheme, layout?: DungeonLayout): Texture {
+    const cacheKey: string = `td_${mode}_${tile}_${theme ?? 'none'}_${layout ?? 'none'}_${this.tileSize}`;
+    const cached: Texture | undefined = this.textures.get(cacheKey);
+    if (cached) {
+      return cached;
+    }
+
+    const canvas: HTMLCanvasElement = document.createElement('canvas');
+    canvas.width = this.tileSize;
+    canvas.height = this.tileSize;
+    const ctx: CanvasRenderingContext2D | null = canvas.getContext('2d');
+    if (!ctx) {
+      throw new Error('Canvas not available for top-down tile.');
+    }
+
+    const base: string = this.topDownTileColor(mode, tile, theme, layout);
+    const edge: string = this.darkenHex(base, 0.18);
+
+    ctx.fillStyle = base;
+    ctx.fillRect(0, 0, this.tileSize, this.tileSize);
+
+    ctx.strokeStyle = edge;
+    ctx.lineWidth = 1;
+    ctx.strokeRect(0.5, 0.5, this.tileSize - 1, this.tileSize - 1);
+
+    const texture: Texture = Texture.from(canvas);
+    this.textures.set(cacheKey, texture);
+    return texture;
+  }
+
+  private topDownTileColor(mode: IsoMode, tile: OverworldTile | DungeonTile | TownTile, theme?: DungeonTheme, layout?: DungeonLayout): string {
+    if (mode === Mode.Overworld) {
+      const t: OverworldTile = tile as OverworldTile;
+      if (t === OverworldTile.Water) {
+        return '#0f4d7f';
+      }
+      if (t === OverworldTile.WaterDeep) {
+        return '#0a2b4d';
+      }
+      if (t === OverworldTile.Grass) {
+        return '#1a5b3c';
+      }
+      if (t === OverworldTile.Forest) {
+        return '#174a30';
+      }
+      if (t === OverworldTile.Mountain) {
+        return '#555b63';
+      }
+      if (t === OverworldTile.MountainSnow) {
+        return '#d9dfe6';
+      }
+      if (t === OverworldTile.Road) {
+        return '#93a7c8';
+      }
+      if (
+        t === OverworldTile.Town ||
+        t === OverworldTile.TownShop ||
+        t === OverworldTile.TownTavern ||
+        t === OverworldTile.TownSmith ||
+        t === OverworldTile.TownHouse
+      ) {
+        return '#cfe3ff';
+      }
+      if (t === OverworldTile.Dungeon) {
+        return '#e6d7ff';
+      }
+      if (t === OverworldTile.Cave) {
+        return '#ffd2a6';
+      }
+      return '#1a5b3c';
+    }
+
+    if (mode === Mode.Town) {
+      const t: TownTile = tile as TownTile;
+      if (t === TownTile.Wall) {
+        return '#61574e';
+      }
+      if (t === TownTile.Road) {
+        return '#8f7f6d';
+      }
+      if (t === TownTile.Square) {
+        return '#b7a58f';
+      }
+      if (t === TownTile.Gate) {
+        return '#d5c2a8';
+      }
+      if (t === TownTile.Shop || t === TownTile.Tavern || t === TownTile.Smith || t === TownTile.House) {
+        return '#cab090';
+      }
+      return '#7a6b59';
+    }
+
+    const t: DungeonTile = tile as DungeonTile;
+    if (layout === DungeonLayout.Maze) {
+      if (t === DungeonTile.Wall) {
+        return '#46566b';
+      }
+      if (t === DungeonTile.StairsUp || t === DungeonTile.StairsDown) {
+        return '#8ea2bd';
+      }
+      if (t === DungeonTile.BossFloor) {
+        return '#7a6a4c';
+      }
+      return '#60758f';
+    }
+
+    const palette = themePalette(theme ?? DungeonTheme.Ruins);
+    if (t === DungeonTile.Wall) {
+      return palette.wall;
+    }
+    if (t === DungeonTile.StairsUp || t === DungeonTile.StairsDown) {
+      return palette.stairs;
+    }
+    return palette.floor;
   }
 
   /**
